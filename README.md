@@ -1,7 +1,7 @@
 # Convergence - Work in Progress
 Game engine/assistant for playing a new tabletop/role playing game.  See [Convergence Docs](https://github.com/sdt6585/convergence-docs) for a more detailed description of the game and project.
 
-###Original Svelte readme below:
+###O riginal Svelte readme below:
 
 
 # sv
