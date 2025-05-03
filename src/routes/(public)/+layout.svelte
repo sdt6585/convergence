@@ -1,11 +1,23 @@
 <script>
-  import '../../app.css';
+  // Styles
+  import '../../styles/app.css';
+  // Supabase
   import { createClient } from '@supabase/supabase-js';
   import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+  // Utility
+  import { getPath } from '../../utils/navigation'
+    import { afterNavigate } from '$app/navigation';
 
   //Check if we're logged in or not
+  var email = $state();
   const supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
-  supabase.auth.getSession()
+  async function checkAuth () {
+    let userResponse = await supabase.auth.getUser();
+    email = userResponse?.data?.user?.email || false;
+  };
+  afterNavigate(checkAuth);
+
+
 </script>
 
 <div class="app">
@@ -15,9 +27,17 @@
       <h1 class="title">CONVERGENCE</h1>
     </div>
     <nav>
-      <a href="/">Home</a>
-      <a href="/login">Login</a>
-      <a href="/signup">Sign Up</a>
+      {#if email }
+        <span>Hello {email}</span>
+      {/if}
+      <a href="{getPath('/')}">Home</a>
+      {#if email } 
+        <a href="{getPath('/app')}">Enter Game</a>
+        <a href="{getPath('/logout')}">Logout</a>
+      {:else}
+        <a href="{getPath('/login')}">Login</a>
+        <a href="{getPath('/signup')}">Sign Up</a>
+      {/if}
     </nav>
   </header>
   

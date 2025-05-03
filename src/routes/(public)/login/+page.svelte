@@ -8,7 +8,7 @@
   // Initialize Supabase client
   const supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
 
-  // Svelte 5 reactive variables using $state
+  // UI Variables
   let email = $state('');
   let password = $state('');
   let isLoading = $state(false);

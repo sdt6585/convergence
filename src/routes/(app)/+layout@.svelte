@@ -5,18 +5,18 @@
 
   //Check if we're logged in or not
   const supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
-  let email = $state('');
+  let email = $state();
   let test = $state('');
   (async function () {
     let user = await supabase.auth.getUser();
     email = user?.data?.user?.email;
-    console.log(user?.data?.user?.email);
+
     const { data, error } = await supabase
       .from('Test')
       .select('*')
 
     console.log(data);
-    test = data?.map((item) => item.name).join(', ');
+    test = data?.map((item) => item.name).join(', ') || '';
   })();
 </script>
 

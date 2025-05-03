@@ -1,0 +1,59 @@
+<!-- src/(public)/logout/+page.svelte -->
+<script>
+  import '../../../styles/auth-forms.css';
+  import { createClient } from '@supabase/supabase-js';
+  import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+  import { goto } from '$app/navigation';
+
+  // Initialize Supabase client
+  const supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
+
+  // UI Variables
+  let errorMessage = $state('');
+  let successMessage = $state('');
+  
+  // Logout
+  errorMessage = '';
+  successMessage = '';
+  
+  (async function () {
+    try {
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) throw error;
+      
+      // Successful login - you can redirect or handle the session here
+      successMessage = 'Successfully logged out, returning to home page...'
+      setTimeout(() => {
+        goto('/');  
+      }, 1000)
+      
+      
+    } catch (error) {
+      console.error('Login error:', error);
+      errorMessage = error.message;
+    }
+  })();
+</script>
+
+<div class="auth-container">
+  <div class="auth-header">
+    <h2>Logging you Out...</h2>
+  </div>
+    {#if errorMessage}
+      <div class="error-message">
+        {errorMessage}, please click logout again or refresh the page
+      </div>
+    {/if}
+    
+
+    {#if successMessage}
+      <div class="success-message">
+        {successMessage}
+      </div>
+    {/if}
+</div>
+
+<style>
+
+</style>
