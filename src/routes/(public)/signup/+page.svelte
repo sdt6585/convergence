@@ -105,7 +105,7 @@
     </div>
     
     <button type="submit" class="btn btn-primary" disabled={isLoading}>
-      {isLoading ? 'Signing In...' : 'Login'}
+      {isLoading ? 'Signing Up...' : 'Sign Up'}
     </button>
 
     
