@@ -4,6 +4,7 @@
   import { createClient } from '@supabase/supabase-js';
   import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
   import { goto } from '$app/navigation';
+  import { getPath } from '@utils/navigation';
 
   // Initialize Supabase client
   const supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
@@ -25,7 +26,7 @@
       // Successful login - you can redirect or handle the session here
       successMessage = 'Successfully logged out, returning to home page...'
       setTimeout(() => {
-        goto('/');  
+        goto(getPath('/'));  
       }, 1000)
       
       
