@@ -1,9 +1,19 @@
 import { svelteTesting } from '@testing-library/svelte/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
+import path from 'path';
 
 export default defineConfig({
 	plugins: [sveltekit()],
+	resolve: {
+		alias: {
+			'@src': path.resolve('./src'),
+      '@styles': path.resolve('./src/styles'),
+      '@utils': path.resolve('./src/utils'),
+      '@lib': path.resolve('./src/lib'),
+			'@routes': path.resolve('.src/routes')
+		}
+	},
 	test: {
 		workspace: [
 			{

@@ -6,6 +6,8 @@
 	"scripts": {
 		"dev": "vite dev --port 3000",
 		"build": "vite build",
+		"build:prod": "cross-env NODE_ENV=production vite build",
+		"deploy": "npm run build:prod && gh-pages -d build -t true",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json",

@@ -1,11 +1,11 @@
 <script>
   // Styles
-  import '../../styles/app.css';
+  import '@styles/app.css';
   // Supabase
   import { createClient } from '@supabase/supabase-js';
   import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
   // Utility
-  import { getPath } from '../../utils/navigation'
+  import { getPath } from '@utils/navigation'
     import { afterNavigate } from '$app/navigation';
 
   //Check if we're logged in or not
@@ -23,7 +23,7 @@
 <div class="app">
   <header>
     <div class="logo-container">
-      <img src="/images/logo.png" alt="Convergence" class="logo-image" />
+      <img src="{getPath('/images/logo.png')}" alt="Convergence" class="logo-image" />
       <h1 class="title">CONVERGENCE</h1>
     </div>
     <nav>

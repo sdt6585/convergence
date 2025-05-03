@@ -6,9 +6,7 @@
       Explore a world where every decision matters and shapes your unique journey.
     </p>
     
-    <a href="/login" class="cta-button">
-      Begin Your Journey
-    </a>
+    <a href="/login" class="cta-button">Begin Your Journey</a>
   </section>
 </div>
 

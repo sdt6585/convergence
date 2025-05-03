@@ -1,8 +1,13 @@
 <!-- src/lib/components/Login.svelte -->
 <script>
-  import '../../../styles/auth-forms.css';
+  // Styles
+  import '@styles/app.css';
+  import '@styles/auth-forms.css';
+  // Supabase
   import { createClient } from '@supabase/supabase-js';
   import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+  // Utility
+  import { getPath } from '@utils/navigation';
   import { goto } from '$app/navigation';
 
   // Initialize Supabase client
@@ -104,7 +109,7 @@
     </button>
     
     <div class="auth-link">
-      <p>Don't have an account? <a href="/signup">Sign Up</a></p>
+      <p>Don't have an account? <a href="{getPath('/signup')}">Sign Up</a></p>
     </div>
   </form>
 </div>
