@@ -12,7 +12,7 @@ const config = {
 			strict: true
 		}),
 		paths: {
-			base: process.env.NODE_ENV === 'production' ? 'https://sdt6585.github.io/convergence/' : ''
+			base: process.env.NODE_ENV === 'production' ? '/convergence' : ''
 		}
 	}
 };
