@@ -6,15 +6,25 @@
   import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
   // Utility
   import { getPath } from '@utils/navigation'
-    import { afterNavigate } from '$app/navigation';
+  import { afterNavigate } from '$app/navigation';
+  import { setContext } from 'svelte'; 
+
+  // Set up the context
+  let email = $state();
+  let user = $state({});
+  const supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
+  setContext('auth', {
+    get user() { return user; },
+    get email() { return email; },
+    supabase
+  });
 
   //Check if we're logged in or not
-  var email = $state();
-  const supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
   async function checkAuth () {
     let userResponse = await supabase.auth.getUser();
     email = userResponse?.data?.user?.email || false;
   };
+  checkAuth();
   afterNavigate(checkAuth);
 
 

@@ -1,3 +1,12 @@
+<script>
+  // Utility
+  import { getPath } from '@utils/navigation'
+  import { getContext } from 'svelte';
+
+  const auth = getContext('auth');
+  
+</script>
+
 <div class="container">
   <section class="intro">
     <h2>Welcome to Convergence</h2>
@@ -6,7 +15,11 @@
       Explore a world where every decision matters and shapes your unique journey.
     </p>
     
-    <a href="/login" class="cta-button">Begin Your Journey</a>
+    {#if auth.email} 
+      <a href="{getPath('/app')}" class="cta-button">Play Now</a>
+    {:else}
+      <a href="{getPath('/login')}" class="cta-button">Begin Your Journey</a>
+    {/if}
   </section>
 </div>
 
