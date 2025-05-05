@@ -71,7 +71,7 @@ export function createShip(
     position,
     velocity: { x: Math.random() * 2 - 1, y: Math.random() * 2 - 1 },
     heading: Math.random() * Math.PI * 2,
-    maxThrust: 20, // Increased from original value for more movement flexibility
+    maxThrust: 200,
     faction,
     hull: 100,
     maxHull: 100,
