@@ -8,7 +8,6 @@
   
   onMount(async () => {
     // Dynamically import the client-side module
-    // This ensures Phaser is only loaded in the browser, not during SSR
     const { createPhaserGame } = await import('./phaser-client.js');
     
     // Create Phaser game once the component is mounted and the module is loaded
@@ -24,16 +23,10 @@
     }
   });
   
-  /**
-   * Advance the game by one turn
-   */
   function nextTurn() {
     simulateTurn();
   }
   
-  /**
-   * Reset the game to initial state
-   */
   function reset() {
     resetShips();
   }
@@ -53,14 +46,20 @@
     flex-direction: column;
     width: 100%;
     height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
   }
   
   .radar-container {
     flex: 1;
-    min-height: 400px;
     width: 100%;
     height: 100%;
+    min-height: 400px;
     background-color: #000033;
+    overflow: hidden;
   }
   
   .game-controls {

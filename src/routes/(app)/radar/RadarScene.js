@@ -25,6 +25,10 @@ export default class RadarScene extends Phaser.Scene {
     this.radarCircles = null;
     this.ringLabels = [];
     this.scaleText = null;
+
+    // Track previous window dimensions
+    this.prevWidth = 0;
+    this.prevHeight = 0;
   }
   
   /**
@@ -161,8 +165,30 @@ export default class RadarScene extends Phaser.Scene {
     this.zoomLevel = Math.max(0.25, Math.min(5, this.zoomLevel + delta));
     this.drawRadarCircles();
     
-    // Redraw all ships at new scale
-    this.updateShips(get(gameState).ships);
+    // Scale ship containers based on zoom
+    const currentState = get(gameState);
+    currentState.ships.forEach(ship => {
+      const container = this.ships.get(ship.id);
+      if (container) {
+        // Center of the scene
+        const centerX = this.cameras.main.width / 2;
+        const centerY = this.cameras.main.height / 2;
+        
+        // Calculate position relative to center
+        const relX = ship.position.x - centerX;
+        const relY = ship.position.y - centerY;
+        
+        // Scale position by zoom level
+        const scaledX = centerX + relX / this.zoomLevel;
+        const scaledY = centerY + relY / this.zoomLevel;
+        
+        // Update position
+        container.setPosition(scaledX, scaledY);
+        
+        // Scale the ship size based on zoom
+        container.setScale(1 / this.zoomLevel);
+      }
+    });
   }
   
   /**
@@ -354,11 +380,21 @@ export default class RadarScene extends Phaser.Scene {
   handleDragEnd(pointer) {
     if (!this.selectedShip || !this.dragStart) return;
     
-    // Calculate final velocity
+    // Calculate drag vector with scaling for precision
     const dragVector = {
       x: (pointer.x - this.dragStart.x) * 0.1,
       y: (pointer.y - this.dragStart.y) * 0.1
     };
+    
+    // Calculate magnitude of the velocity change
+    const dragMagnitude = Math.sqrt(dragVector.x * dragVector.x + dragVector.y * dragVector.y);
+    
+    // If magnitude exceeds maxThrust, normalize and scale to maxThrust
+    if (dragMagnitude > this.selectedShip.maxThrust) {
+      const scale = this.selectedShip.maxThrust / dragMagnitude;
+      dragVector.x *= scale;
+      dragVector.y *= scale;
+    }
     
     // Update ship velocity
     gameState.update(state => {
@@ -383,6 +419,7 @@ export default class RadarScene extends Phaser.Scene {
     this.isDragging = false;
     this.dragStart = null;
     this.dragLine.clear();
+    this.trajectoryGraphics.clear();
   }
   
   /**
@@ -570,6 +607,49 @@ export default class RadarScene extends Phaser.Scene {
           }
         }
       }
+    });
+
+    // Check for window resize
+    if (this.prevWidth !== this.cameras.main.width || 
+      this.prevHeight !== this.cameras.main.height) {
+      this.prevWidth = this.cameras.main.width;
+      this.prevHeight = this.cameras.main.height;
+      
+      // Redraw radar circles
+      this.drawRadarCircles();
+      
+      // Reposition zoom controls
+      this.updateZoomControlsPosition();
+      
+      // Center ships if this is the first sizing
+      if (this.firstSizing) {
+        this.firstSizing = false;
+        this.centerShips();
+      }
+    }
+  }
+
+  // Add this method to center ships on screen
+  centerShips() {
+    const centerX = this.cameras.main.width / 2;
+    const centerY = this.cameras.main.height / 2;
+    
+    gameState.update(state => {
+      const centeredShips = state.ships.map(ship => {
+        // Adjust position to center on screen
+        return {
+          ...ship,
+          position: {
+            x: ship.position.x + (centerX - 400), // Assuming original center was at 400,300
+            y: ship.position.y + (centerY - 300)
+          }
+        };
+      });
+      
+      return {
+        ...state,
+        ships: centeredShips
+      };
     });
   }
 }

@@ -65,28 +65,40 @@ export function calculateTrajectory(
   const currentPos = { ...startPos };
   const currentVel = { ...startVel };
   
-  for (let i = 0; i < steps; i++) {
-    trajectory.push({ ...currentPos });
+  // First point is the starting position
+  trajectory.push({ ...currentPos });
+  
+  // Vector to target
+  const toTarget = {
+    x: targetPos.x - startPos.x,
+    y: targetPos.y - startPos.y
+  };
+  
+  // Calculate total distance to target
+  const distanceToTarget = Math.sqrt(toTarget.x * toTarget.x + toTarget.y * toTarget.y);
+  
+  // Normalize the direction vector
+  const direction = normalizeVector(toTarget);
+  
+  // Calculate required thrust (constrain by maxThrust)
+  const requiredThrust = Math.min(distanceToTarget, maxThrust);
+  
+  for (let i = 1; i < steps; i++) {
+    // Calculate progress along the path (non-linear ease-in-out)
+    const t = i / steps;
+    const easedT = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
     
-    // Calculate required acceleration
-    const toTarget = {
-      x: targetPos.x - currentPos.x,
-      y: targetPos.y - currentPos.y
+    // Calculate position at this step
+    const newPos = {
+      x: startPos.x + startVel.x * t + direction.x * requiredThrust * easedT,
+      y: startPos.y + startVel.y * t + direction.y * requiredThrust * easedT
     };
     
-    // Simple physics: move towards target with constraints
-    const thrust = normalizeVector(toTarget);
-    const acceleration = {
-      x: thrust.x * maxThrust * (i / steps),
-      y: thrust.y * maxThrust * (i / steps)
-    };
-    
-    currentVel.x += acceleration.x;
-    currentVel.y += acceleration.y;
-    
-    currentPos.x += currentVel.x / steps;
-    currentPos.y += currentVel.y / steps;
+    trajectory.push(newPos);
   }
+  
+  // Final point is the target position
+  trajectory.push({ ...targetPos });
   
   return trajectory;
 }

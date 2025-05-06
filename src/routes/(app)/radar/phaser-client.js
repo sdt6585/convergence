@@ -13,7 +13,7 @@ export function createPhaserGame(container) {
   const height = container.clientHeight || 600;
   
   const config = {
-    type: Phaser.AUTO,
+    type: Phaser.CANVAS, // Use CANVAS renderer for better compatibility
     parent: container,
     width: width,
     height: height,
@@ -25,6 +25,11 @@ export function createPhaserGame(container) {
         gravity: { x: 0, y: 0 },
         debug: false
       }
+    },
+    scale: {
+      mode: Phaser.Scale.RESIZE, // Auto resize
+      width: '100%',
+      height: '100%'
     }
   };
   
@@ -33,25 +38,29 @@ export function createPhaserGame(container) {
   // Initialize ships
   resetShips();
   
-  // Add resize handler
+  // Add resize handler with debounce
+  let resizeTimeout;
   window.addEventListener('resize', () => {
-    const newWidth = container.clientWidth;
-    const newHeight = container.clientHeight;
-    
-    if (game.scale && newWidth > 0 && newHeight > 0) {
-      game.scale.resize(newWidth, newHeight);
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      const newWidth = container.clientWidth;
+      const newHeight = container.clientHeight;
       
-      // Notify scene to update radar circles and UI elements
-      const radarScene = game.scene.getScene('RadarScene');
-      if (radarScene && radarScene.drawRadarCircles) {
-        radarScene.drawRadarCircles();
+      if (game.scale && newWidth > 0 && newHeight > 0) {
+        game.scale.resize(newWidth, newHeight);
         
-        // Update zoom controls position
-        if (radarScene.updateZoomControlsPosition) {
-          radarScene.updateZoomControlsPosition();
+        // Notify scene to update radar circles and UI elements
+        const radarScene = game.scene.getScene('RadarScene');
+        if (radarScene && radarScene.drawRadarCircles) {
+          radarScene.drawRadarCircles();
+          
+          // Update zoom controls position
+          if (radarScene.updateZoomControlsPosition) {
+            radarScene.updateZoomControlsPosition();
+          }
         }
       }
-    }
+    }, 100); // 100ms debounce
   });
   
   // Disable context menu on game container
