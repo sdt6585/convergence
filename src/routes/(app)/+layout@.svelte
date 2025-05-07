@@ -205,6 +205,7 @@
   </div>
   {/if}
   <!-- Desktop Layout -->
+   <!--  -->
   <div class="panel-layout">
     <!-- Left collapsed panel (shown only when left panel is collapsed) -->
     <div class="panel-collapsed panel-left-collapsed" style="display: {leftPanelCollapsed ? 'flex' : 'none'}">
