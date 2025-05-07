@@ -34,7 +34,7 @@
       if (error) throw error;
       
       // Successful login - you can redirect or handle the session here
-      goto('/app');
+      goto(getPath('/app'));
       
     } catch (error) {
       console.error('Login error:', error);

@@ -8,6 +8,7 @@
   import { getPath } from '@utils/navigation'
   import { afterNavigate } from '$app/navigation';
   import { setContext } from 'svelte'; 
+  import { fly } from 'svelte/transition';
 
   // Set up the context
   let email = $state();
@@ -27,18 +28,23 @@
   checkAuth();
   afterNavigate(checkAuth);
 
+  //Menu
+  let menuOpen = $state(false);
+  let onMenuClick = (e) => {menuOpen = !menuOpen};
+
 
 </script>
 
 <div class="app">
   <header>
-    <div class="logo-container">
+    <a class="logo-container" href="{getPath('/')}">
       <img src="{getPath('/images/logo.png')}" alt="Convergence" class="logo-image" />
-      <h1 class="title">CONVERGENCE</h1>
-    </div>
-    <nav>
+      <h1 class="title desktop-only">CONVERGENCE</h1>
+      <h2 class="title mobile-only">CONVERGENCE</h2>
+    </a>
+    <nav class="desktop-only">
       {#if email }
-        <span>Hello {email}</span>
+        <span>{email}</span>
       {/if}
       <a href="{getPath('/')}">Home</a>
       {#if email } 
@@ -49,7 +55,38 @@
         <a href="{getPath('/signup')}">Sign Up</a>
       {/if}
     </nav>
+    <button class="mobile-only nav-menu-open" onclick={onMenuClick} aria-label="menu button">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 6H20M4 12H20M4 18H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
   </header>
+
+  <!-- Side Menu -->
+  {#if menuOpen}
+  <div class="nav-menu" transition:fly={{x: 300, duration: 300}}>
+    <div style="display: flex;">
+      <button class="nav-menu-close" onclick={onMenuClick} aria-label="Close menu">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <span style="flex: 1;">Menu</span>
+    </div>
+    <!-- Menu content -->
+    {#if email }
+      <span>{email}</span>
+    {/if}
+    <a href="{getPath('/')}" onclick={onMenuClick}>Home</a>
+    {#if email } 
+      <a href="{getPath('/app')}" onclick={onMenuClick}>Enter Game</a>
+      <a href="{getPath('/logout')}" onclick={onMenuClick}>Logout</a>
+    {:else}
+      <a href="{getPath('/login')}" onclick={onMenuClick}>Login</a>
+      <a href="{getPath('/signup')}" onclick={onMenuClick}>Sign Up</a>
+    {/if}
+  </div>
+  {/if}
   
   <main>
     <!-- This slot is where page content will be rendered -->
@@ -58,50 +95,4 @@
 </div>
 
 <style>
-  .app {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-    position: relative;
-    z-index: 1;
-  }
-  
-  header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem 2rem;
-    background-color: rgba(20, 20, 20, 0.8);
-  }
-  
-  .logo-container {
-    display: flex;
-    align-items: center;
-  }
-  
-  .logo-image {
-    height: 50px; /* Adjust the size as needed */
-    width: auto;
-  }
-  
-  nav {
-    display: flex;
-    gap: 1.5rem;
-  }
-  
-  nav a {
-    color: #f5f5f5;
-    font-size: 1rem;
-  }
-  
-  main {
-    flex: 1;
-    padding: 2rem;
-    display: flex;
-    justify-content: center;
-  }
-
-  .title {
-    margin-left: 15px;
-  }
 </style>
