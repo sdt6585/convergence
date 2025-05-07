@@ -16,7 +16,7 @@
     </p>
     
     {#if auth.email} 
-      <a href="{getPath('/app')}" class="cta-button">Play Now</a>
+      <a href="{getPath('/games')}" class="cta-button">Play Now</a>
     {:else}
       <a href="{getPath('/login')}" class="cta-button">Begin Your Journey</a>
     {/if}
