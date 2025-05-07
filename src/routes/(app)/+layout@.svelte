@@ -232,8 +232,7 @@
     {/if}
   </div>
   {/if}
-  <!-- Desktop Layout Stephen -->
-   <!-- Stephen -->
+  <!-- Desktop Layout -->
   <div class="panel-layout">
     {#if !leftPanelCollapsed}
       <div class="panel panel-left" 
