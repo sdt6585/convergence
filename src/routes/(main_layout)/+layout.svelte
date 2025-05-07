@@ -1,32 +1,27 @@
 <script>
   // Styles
   import '@styles/app.css';
-  // Supabase
-  import { createClient } from '@supabase/supabase-js';
-  import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+  //Supbase/Server
+  import DataStore from '@src/DataStore.svelte';
   // Utility
   import { getPath } from '@utils/navigation'
   import { afterNavigate } from '$app/navigation';
   import { setContext } from 'svelte'; 
   import { fly } from 'svelte/transition';
+  import { browser } from '$app/environment';
 
   // Set up the context
-  let email = $state();
   let user = $state({});
+  let app = {};
   const supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
-  setContext('auth', {
-    get user() { return user; },
-    get email() { return email; },
-    supabase
-  });
 
-  //Check if we're logged in or not
-  async function checkAuth () {
-    let userResponse = await supabase.auth.getUser();
-    email = userResponse?.data?.user?.email || false;
-  };
-  checkAuth();
-  afterNavigate(checkAuth);
+  
+  if (browser) {
+    //Check if we're logged in or not
+    app = new DataStore();
+    app.checkAuth();
+  }
+  afterNavigate(app.checkAuth);
 
   //Menu
   let menuOpen = $state(false);
@@ -43,8 +38,8 @@
       <h2 class="title mobile-only">CONVERGENCE</h2>
     </a>
     <nav class="nav desktop-only">
-      {#if email }
-        <span>{email}</span>
+      {#if app.user }
+        <span>{app.user.email}</span>
       {/if}
     </nav>
     <button class="nav-menu-open" onclick={onMenuClick} aria-label="menu button">
@@ -67,7 +62,7 @@
     </div>
     <!-- Menu content -->
     <a href="{getPath('/')}" onclick={onMenuClick}>Home</a>
-    {#if email } 
+    {#if app.user } 
       <a href="{getPath('/games')}" onclick={onMenuClick}>View Games</a>
       <a href="{getPath('/logout')}" onclick={onMenuClick}>Logout</a>
     {:else}

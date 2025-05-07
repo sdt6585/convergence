@@ -29,7 +29,7 @@
         email: email,
         password: password,
         options: {
-          emailRedirectTo: `${PUBLIC_URL}/app`
+          emailRedirectTo: `${PUBLIC_URL}/games`
         }
       });
       
@@ -40,7 +40,7 @@
         const { error: magicLinkError } = await supabase.auth.signInWithOtp({
           email: email,
           options: {
-            emailRedirectTo: `${PUBLIC_URL}/app`
+            emailRedirectTo: `${PUBLIC_URL}/games`
           }
         });
 

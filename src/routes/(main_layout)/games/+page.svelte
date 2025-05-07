@@ -38,7 +38,7 @@
     }
 
     const gameResponse = await supabase
-      .from('Game')
+      .from('game')
       .select('*')
       .eq('user_id', user.id);
     
@@ -75,7 +75,7 @@
     if (validateForm()) {
       // Do something with the game name
       let insertGameResponse = await supabase
-        .from('Game')
+        .from('game')
         .insert([
           { name: gameName, user_id: user.id },
         ])

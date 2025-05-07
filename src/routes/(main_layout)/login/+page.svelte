@@ -33,7 +33,7 @@
       if (error) throw error;
       
       // Successful login - you can redirect or handle the session here
-      goto(getPath('/app'));
+      goto(getPath('/games'));
       
     } catch (error) {
       console.error('Login error:', error);
