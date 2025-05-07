@@ -24,11 +24,6 @@
 </div>
 
 <style>
-  .container {
-    max-width: 800px;
-    width: 100%;
-  }
-  
   .intro {
     display: flex;
     flex-direction: column;

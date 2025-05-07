@@ -2,7 +2,6 @@
 <script>
   // Styles
   import '@styles/app.css';
-  import '@styles/auth-forms.css';
   // Supabase
   import { createClient } from '@supabase/supabase-js';
   import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
@@ -56,7 +55,7 @@
     <h2>Sign In</h2>
   </div>
   
-  <form class="auth-form" on:submit={handleLogin}>
+  <form class="form" on:submit={handleLogin}>
     <div class="form-group">
       <label for="email">Email</label>
       <input 
