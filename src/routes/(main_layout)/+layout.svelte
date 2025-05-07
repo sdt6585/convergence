@@ -35,27 +35,19 @@
 
 </script>
 
-<div class="app">
+<div class="main-container">
   <header>
     <a class="logo-container" href="{getPath('/')}">
       <img src="{getPath('/images/logo.png')}" alt="Convergence" class="logo-image" />
       <h1 class="title desktop-only">CONVERGENCE</h1>
       <h2 class="title mobile-only">CONVERGENCE</h2>
     </a>
-    <nav class="desktop-only">
+    <nav class="nav desktop-only">
       {#if email }
         <span>{email}</span>
       {/if}
-      <a href="{getPath('/')}">Home</a>
-      {#if email } 
-        <a href="{getPath('/app')}">Enter Game</a>
-        <a href="{getPath('/logout')}">Logout</a>
-      {:else}
-        <a href="{getPath('/login')}">Login</a>
-        <a href="{getPath('/signup')}">Sign Up</a>
-      {/if}
     </nav>
-    <button class="mobile-only nav-menu-open" onclick={onMenuClick} aria-label="menu button">
+    <button class="nav-menu-open" onclick={onMenuClick} aria-label="menu button">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M4 6H20M4 12H20M4 18H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
       </svg>
@@ -74,12 +66,9 @@
       <span style="flex: 1;">Menu</span>
     </div>
     <!-- Menu content -->
-    {#if email }
-      <span>{email}</span>
-    {/if}
     <a href="{getPath('/')}" onclick={onMenuClick}>Home</a>
     {#if email } 
-      <a href="{getPath('/app')}" onclick={onMenuClick}>Enter Game</a>
+      <a href="{getPath('/games')}" onclick={onMenuClick}>View Games</a>
       <a href="{getPath('/logout')}" onclick={onMenuClick}>Logout</a>
     {:else}
       <a href="{getPath('/login')}" onclick={onMenuClick}>Login</a>
@@ -95,4 +84,5 @@
 </div>
 
 <style>
+  
 </style>

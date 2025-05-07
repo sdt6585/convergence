@@ -16,7 +16,12 @@ const config = {
         paths: {
             base: process.env.NODE_ENV === 'production' ? '/convergence' : ''
         }
-    }
+    },
+    compilerOptions: {
+        // Filter out TypeScript warnings
+        warningFilter: (warning) => {!warning.code.startsWith('ts-') && !warning.code.startsWith('a11y_')}
+      }    
+
 };
 
 export default config;

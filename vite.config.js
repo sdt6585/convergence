@@ -11,7 +11,8 @@ export default defineConfig({
       '@styles': path.resolve('./src/styles'),
       '@utils': path.resolve('./src/utils'),
       '@lib': path.resolve('./src/lib'),
-			'@routes': path.resolve('.src/routes')
+			'@routes': path.resolve('./src/routes'),
+			'@components': path.resolve('./src/components')
 		}
 	},
 	test: {

@@ -1,5 +1,4 @@
 <script>
-  import '@styles/auth-forms.css';
   import { createClient } from '@supabase/supabase-js';
   import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, PUBLIC_URL } from '$env/static/public';
   
@@ -70,7 +69,7 @@
     <h2>Sign Up</h2>
   </div>
   
-  <form class="auth-form" on:submit={handleSignup}>
+  <form class="form" on:submit={handleSignup}>
     <div class="form-group">
       <label for="email">Email</label>
       <input 

@@ -1,6 +1,5 @@
 <!-- src/(public)/logout/+page.svelte -->
 <script>
-  import '@styles/auth-forms.css';
   import { createClient } from '@supabase/supabase-js';
   import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
   import { goto } from '$app/navigation';
