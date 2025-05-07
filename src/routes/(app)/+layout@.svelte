@@ -1,11 +1,16 @@
 <script>
+  //Styles
   import '@styles/app.css';
+  //Supabase
   import { createClient } from '@supabase/supabase-js';
   import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+  //Utility
   import { getPath } from '@utils/navigation';
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import { browser } from '$app/environment';
+  import { fly } from 'svelte/transition';
+  //Components
   import PanelSelector from './PanelSelector.svelte';
 
 
@@ -21,10 +26,14 @@
   let leftPanelWidth = $state('400px');
   let leftPanelContent = $state('player_ship');
   let leftPanelCollapsed = $state(false);
+  let leftPanelName = $state('Player Ship');
+  let leftPanelSliding = $state(false);
   let centerPanelContent = $state('chat');
   let rightPanelWidth = $state('400px');
   let rightPanelContent = $state('npc');
   let rightPanelCollapsed = $state(false);
+  let rightPanelName = $state('NPC');
+  let rightPanelSliding = $state(false);
 
   onMount(async () => {
     /**
@@ -33,17 +42,26 @@
     let user = await supabase.auth.getUser();
     email = user?.data?.user?.email;
 
+    // console.log(user);
     // Send them to the login if they aren't logged in
     if (!email) {
       goto(getPath('/login'));
     }
 
-    const { data, error } = await supabase
-      .from('Test')
-      .select('*')
+    // const { data, error } = await supabase
+    //   .from('Test')
+    //   .select('*')
+
+    // const {insertData, insertError} = await supabase
+    //   .from('Test')
+    //   .insert([
+    //     {name: "New " + (new Date).toISOString()},
+    //     {name: "New 2 " + (new Date).toISOString()}
+    //   ])
 
     // TODO - remove me!!!
-    test = data?.map((item) => item.name).join(', ') || '';
+    // test = data?.map((item) => item.name).join(', ') || '';
+    // console.log(data, test, $state.snapshot(test));
 
     // Unmount general mouse listeners
     return () => {
@@ -73,12 +91,22 @@
     localStorage.setItem('leftPanelContent', newPanel);
   }
 
+  let leftPanelToggle = () => {
+    leftPanelCollapsed = !leftPanelCollapsed;
+    localStorage.setItem('leftPanelCollapsed', leftPanelCollapsed.toString());
+  }
+
   let onRightPanelChanged = (newPanel) => {
     localStorage.setItem('rightPanelContent', newPanel);
   }
 
   let onCenterPanelChanged = (newPanel) => {
     localStorage.setItem('centerPanelContent', newPanel);
+  }
+  
+  let rightPanelToggle = () => {
+    rightPanelCollapsed = !rightPanelCollapsed;
+    localStorage.setItem('rightPanelCollapsed', rightPanelCollapsed.toString());
   }
 
   /**
@@ -207,21 +235,26 @@
   <!-- Desktop Layout Stephen -->
    <!-- Stephen -->
   <div class="panel-layout">
-    <!-- Left collapsed panel (shown only when left panel is collapsed) -->
-    <div class="panel-collapsed panel-left-collapsed" style="display: {leftPanelCollapsed ? 'flex' : 'none'}">
-      <!-- Rotated title and expand button here -->
-    </div>
-    
-    <!-- Left panel (shown only when not collapsed) -->
-    <div class="panel panel-left" style="display: {!leftPanelCollapsed ? 'flex' : 'none'}; width: {leftPanelWidth}">
-      
-      <div class="panel-header">
-        <PanelSelector value={leftPanelContent} onChange={onLeftPanelChanged} />
-        <button class="collapse-button"> |← </button>
+    {#if !leftPanelCollapsed}
+      <div class="panel panel-left" 
+          transition:fly={{x: -300, duration: 300}} 
+          onoutrostart={() => {leftPanelSliding = true; console.log('slideStart');}}
+          onoutroend={() => {leftPanelSliding = false; console.log('slideEnd');}}
+          style="width: {leftPanelWidth}">
+        
+        <div class="panel-header">
+          <PanelSelector value={leftPanelContent} bind:name={leftPanelName} onChange={onLeftPanelChanged} />
+          <button class="collapse-button" onclick={leftPanelToggle}> |← </button>
+        </div>
+        
+        <div class="panel-content"></div>
       </div>
-      
-      <div class="panel-content"></div>
-    </div>
+    {:else if !leftPanelSliding}
+      <div class="panel-collapsed panel-left-collapsed">
+        <button class="collapse-button" onclick={leftPanelToggle}> →| </button>
+        <h3>{leftPanelName}</h3>
+      </div>
+    {/if}
     
     <!-- Left resize handle (only shown when left panel is visible) -->
     <button class="panel-resize-handle left-resize-handle" aria-label="resize-right-panel"
@@ -244,23 +277,27 @@
          style="display: {!rightPanelCollapsed ? 'flex' : 'none'}"
          onmousedown={(e) => handleMouseDown(e, 'right')}
     ></button>
-    
-    <!-- Right panel (shown only when not collapsed) -->
-    <div class="panel panel-right" style="display: {!rightPanelCollapsed ? 'flex' : 'none'}; width: {rightPanelWidth}">
 
-      <div class="panel-header">
-        <button class="collapse-button"> →| </button>
-        <PanelSelector value={rightPanelContent} onChange={onRightPanelChanged} />
+    {#if !rightPanelCollapsed}
+      <div class="panel panel-right" 
+          transition:fly={{x: 300, duration: 300}} 
+          onoutrostart={() => {rightPanelSliding = true; console.log('slideStart');}}
+          onoutroend={() => {rightPanelSliding = false; console.log('slideEnd');}}
+          style="width: {rightPanelWidth}">
+        
+        <div class="panel-header">
+          <button class="collapse-button" onclick={rightPanelToggle}> →| </button>
+          <PanelSelector value={rightPanelContent} bind:name={rightPanelName} onChange={onRightPanelChanged} />
+        </div>
+        
+        <div class="panel-content"></div>
       </div>
-      
-      <div class="panel-content"></div>
-
-    </div>
-    
-    <!-- Right collapsed panel (shown only when right panel is collapsed) -->
-    <div class="panel-collapsed panel-right-collapsed" style="display: {rightPanelCollapsed ? 'flex' : 'none'}">
-      <!-- Rotated title and expand button here -->
-    </div>
+    {:else if !rightPanelSliding}
+      <div class="panel-collapsed panel-right-collapsed">
+        <button class="collapse-button" onclick={rightPanelToggle}> |← </button>
+        <h3>{rightPanelName}</h3>
+      </div>
+    {/if}
   </div>
 
   <!-- Mobile Layout -->
@@ -276,6 +313,7 @@
     height: 100%;
     position: relative;
     z-index: 1;
+    overflow-x: hidden;
   }
 
   .panel-layout {
@@ -308,15 +346,37 @@
 
   .panel-header {
     display: flex;
-    padding: .5rem;
   }
 
-  .panel-header .collapse-button {
+  .collapse-button {
     background-color: rgba(100, 100, 100, .5);
     border: none;
     padding: 0 5px;
     color: white;
     cursor:pointer;
+  }
+
+  .panel-collapsed {
+    width: 30px;
+    display: flex;
+    flex-direction: column;
+    background-color: rgba(100, 100, 100, .5);
+    border-right: 2px solid #555;
+  }
+
+  .panel-collapsed h3 {
+     writing-mode: vertical-lr;
+     text-align: right;
+     margin-top: 20px;
+  }
+
+  .panel-left-collapsed h3 {
+    transform: rotate(180deg);
+  }
+
+  .panel-collapsed .collapse-button {
+    height: 30px;
+    width: 30px;
   }
 
 </style>

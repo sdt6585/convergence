@@ -1,6 +1,7 @@
 <script>
   // Props
   export let value = "player";
+  export let name = "Player";
   export let onChange = () => {};
   
   // Default options
@@ -16,6 +17,7 @@
   // Handle selection change
   function handleChange(event) {
     value = event.target.value;
+    name = event.target.selectedOptions[0].innerText;
     onChange(value);
   }
 </script>
@@ -34,6 +36,8 @@
     display: inline-block;
     margin: 0;
     flex: 1;
+    border-bottom: 1px solid #333;
+    background-color: rgba(100, 100, 100, .2)
   }
   
   select {
@@ -46,7 +50,7 @@
     font-weight: bold;
     font-family: inherit;
     cursor: pointer;
-    padding: 0;
+    padding: 5px;
     margin: 0;
     color: inherit;
     width: auto;
