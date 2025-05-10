@@ -50,7 +50,7 @@ jobs:
           npx supabase link --project-ref $SUPABASE_PROJECT_ID --password $SUPABASE_DB_PASSWORD
 
       - name: Apply supabase migrations
-        run: npx supabase db push --ignore-config-conflicts
+        run: npx supabase db push
 
   deploy:
     environment:
