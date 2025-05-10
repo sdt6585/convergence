@@ -254,7 +254,7 @@ main {
 }
 
 .btn-primary {
-  background-color: var(--clr-surface-tonal-a20);
+  background-color: var(--clr-surface-tonal-a30);
   border: solid var(--clr-surface-a30);
   color: white;
 }
@@ -358,4 +358,9 @@ main {
 
 .auth-link a:hover {
   text-decoration: underline;
+}
+
+.loading {
+  text-align: center;
+  margin-top: 20px;
 }

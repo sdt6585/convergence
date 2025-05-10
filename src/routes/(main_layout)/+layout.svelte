@@ -1,39 +1,44 @@
 <script>
   // Styles
   import '@styles/app.css';
-  // Supabase
-  import { createClient } from '@supabase/supabase-js';
-  import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+  //Supbase/Server
+  import DataStore from '@src/DataStore.svelte';
   // Utility
   import { getPath } from '@utils/navigation'
   import { afterNavigate } from '$app/navigation';
   import { setContext } from 'svelte'; 
   import { fly } from 'svelte/transition';
-
-  // Set up the context
-  let email = $state();
-  let user = $state({});
-  const supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
-  setContext('auth', {
-    get user() { return user; },
-    get email() { return email; },
-    supabase
-  });
+  import { browser } from '$app/environment';
+  import { onMount } from 'svelte';
+  import { page } from '$app/state';
+  import { redirect } from '@sveltejs/kit';
 
   //Check if we're logged in or not
-  async function checkAuth () {
-    let userResponse = await supabase.auth.getUser();
-    email = userResponse?.data?.user?.email || false;
-  };
-  checkAuth();
-  afterNavigate(checkAuth);
+  let store = $state(new DataStore);
+  setContext('store', store);
 
   //Menu
   let menuOpen = $state(false);
   let onMenuClick = (e) => {menuOpen = !menuOpen};
 
+  onMount(() => {
+    // Make sure we're logged in and have the right to access this
+    async function checkAuth () {
+      await store.checkAuth();
 
+      // Access control - paths that require login
+      if(store.user === null && [
+        '/game',
+        '/games'
+      ].includes(page.url.pathname)) {
+        redirect(303, getPath('/login?path=' + page.url.pathname));
+      }
+    }
+
+    afterNavigate(checkAuth); 
+  });
 </script>
+
 
 <div class="main-container">
   <header>
@@ -43,8 +48,8 @@
       <h2 class="title mobile-only">CONVERGENCE</h2>
     </a>
     <nav class="nav desktop-only">
-      {#if email }
-        <span>{email}</span>
+      {#if store.user }
+        <span>{store.user.email}</span>
       {/if}
     </nav>
     <button class="nav-menu-open" onclick={onMenuClick} aria-label="menu button">
@@ -67,7 +72,7 @@
     </div>
     <!-- Menu content -->
     <a href="{getPath('/')}" onclick={onMenuClick}>Home</a>
-    {#if email } 
+    {#if store.user } 
       <a href="{getPath('/games')}" onclick={onMenuClick}>View Games</a>
       <a href="{getPath('/logout')}" onclick={onMenuClick}>Logout</a>
     {:else}
