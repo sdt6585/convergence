@@ -1,50 +1,22 @@
 <script>
   //Styles
   import '@styles/app.css';
-  //Supabase
-  import { createClient } from '@supabase/supabase-js';
-  import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
   //Utility
   import { getPath } from '@utils/navigation';
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import { browser } from '$app/environment';
   import { fly } from 'svelte/transition';
+  import { getContext } from 'svelte';
   //Components
   import Modal from '@components/Modal.svelte';
 
   /**
-   * Create runes for state management
+   * Make sure games is loaded
    */
-  const supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
-  let user = {};
-  let email = $state();
-  let games = $state([]);
-  let loading = $state(true);
-
-  // Browser only - make sure we're loaded
-  onMount(async () => {
-    /**
-     * Check if we're logged in
-     */
-    let userResponse = await supabase.auth.getUser();
-    user = userResponse.data.user;
-    email = user?.email;
-
-    // console.log(user);
-    // Send them to the login if they aren't logged in
-    if (!email) {
-      goto(getPath('/login'));
-    }
-
-    const gameResponse = await supabase
-      .from('game')
-      .select('*')
-      .eq('user_id', user.id);
-    
-    if(gameResponse.error) throw new Error(gameResponse.error.message);
-    games = [...games, ...gameResponse.data];
-    loading = false;
+  let store = getContext('store');
+  onMount(() => {
+    store.load_games();
   });
 
   /**
@@ -69,28 +41,16 @@
     return isValid;
   }
   
-  async function handleCreateGame(event) {
-    event.preventDefault();
+  async function handleCreateGame(e) {
+    e.preventDefault();
     
     if (validateForm()) {
-      // Do something with the game name
-      let insertGameResponse = await supabase
-        .from('game')
-        .insert([
-          { name: gameName, user_id: user.id },
-        ])
-        .select()
-      
-      if(insertGameResponse.error) throw new Error(insertGameResponse.error.message);
-
-      //Update and re-render the games list
-      games = [...games, ...insertGameResponse.data]
+      // Create the game
+      await store.create_game({ name: gameName, user_id: store.user.id });
       
       // Reset form and close modal
       gameName = '';
       gameModal.close();
-      
-      // Your existing code to handle game creation
     }
   }
   
@@ -103,18 +63,18 @@
 
 
 <div class="container">
-  {#if games.length > 0}
+  {#if store.data.games.length > 0}
     <div style="display:flex;">
       <h2>Games</h2>
       <button class="btn btn-primary" style="margin-left: auto;" onclick={() => {gameModal.open()}}>+ Create</button>
     </div>
     
     <ul class="games" style="font-size: 1.5rem">
-      {#each games as game}
-        <li style="margin-left:20px;"><a href={getPath(`/game#game_id=${game.id}`)}>{game.name}</a></li>
+      {#each store.data.games as game}
+        <li style="margin-left:20px;"><a href={getPath(`/game?game_id=${game.id}`)}>{game.name}</a></li>
         {/each}
     </ul>
-  {:else if !loading}
+  {:else if !store.data.games_loading}
     <div style="text-align: center;">
       <h2>Create your first Game!</h2>
       <button class="btn btn-primary" style="margin-top: 10px;" onclick={() => {gameModal.open()}}>+ Create</button>
@@ -127,8 +87,11 @@
 <Modal 
   bind:this={gameModal}
   title="Create New Game"
+  type="confirm_cancel"
+  confirmText="Create"
   closeable={true}
   onClose={handleCancel}
+  onConfirm={handleCreateGame}
 >
   <form class="modal-form" onsubmit={handleCreateGame}>
     <div class="form-group">
@@ -147,17 +110,14 @@
       {/if}
     </div>
     
-    <div class="modal-actions">
-      <button type="button" class="btn" onclick={() => {
-        handleCancel();
-        gameModal.close();
-      }}>
+    <!-- <div class="modal-actions">
+      <button type="button" class="btn" onclick={() => {}}>
         Cancel
       </button>
       <button type="submit" class="btn btn-primary">
         Create
       </button>
-    </div>
+    </div> -->
   </form>
 </Modal>
 

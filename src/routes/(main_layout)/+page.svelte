@@ -3,7 +3,7 @@
   import { getPath } from '@utils/navigation'
   import { getContext } from 'svelte';
 
-  const auth = getContext('auth');
+  const store = getContext('store');
   
 </script>
 
@@ -15,10 +15,13 @@
       Explore a world where every decision matters and shapes your unique journey.
     </p>
     
-    {#if auth.email} 
+    {#if store?.user} 
       <a href="{getPath('/games')}" class="cta-button">Play Now</a>
-    {:else}
-      <a href="{getPath('/login')}" class="cta-button">Begin Your Journey</a>
+    {:else if !store?.user_loading}
+    <div style="display:flex; gap: 1.5rem">
+      <a href="{getPath('/login')}" class="cta-button">Login</a>
+      <a href="{getPath('/signup')}" class="cta-button">Begin Your Journey</a>
+    </div>
     {/if}
   </section>
 </div>

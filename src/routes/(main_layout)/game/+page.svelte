@@ -1,31 +1,29 @@
 <script>
   //Styles
   import '@styles/app.css';
-  //Supabase
-  import { createClient } from '@supabase/supabase-js';
-  import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
   //Utility
   import { getPath } from '@utils/navigation';
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import { browser } from '$app/environment';
   import { fly } from 'svelte/transition';
+  import { page } from '$app/state';
+  import { getContext } from 'svelte';
   //Components
   import PanelSelector from './components/PanelSelector.svelte';
+  import Party from './components/Party.svelte';
 
+  let store = getContext('store');
 
   /**
    * Create runes for state management
    */
-  const supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
-  let email = $state();
-
   // Set up panel state with default values
   // These defaults will be used during SSR
   let leftPanelWidth = $state('400px');
-  let leftPanelContent = $state('player_ship');
+  let leftPanelContent = $state('party');
   let leftPanelCollapsed = $state(false);
-  let leftPanelName = $state('Player Ship');
+  let leftPanelName = $state('Party');
   let leftPanelSliding = $state(false);
   let centerPanelContent = $state('chat');
   let rightPanelWidth = $state('400px');
@@ -36,17 +34,9 @@
   let windowWidth = $state(1024);
 
   onMount(async () => {
-    /**
-     * Check if we're logged in
-     */
-    let user = await supabase.auth.getUser();
-    email = user?.data?.user?.email;
-
-    // console.log(user);
-    // Send them to the login if they aren't logged in
-    if (!email) {
-      goto(getPath('/login'));
-    }
+    // Load game
+    let game_id = page.url.searchParams.get('game_id')
+    await store.load_game(game_id);
 
     // Unmount general mouse listeners
     return () => {
@@ -75,6 +65,7 @@
    */
   let onLeftPanelChanged = (newPanel) => {
     localStorage.setItem('leftPanelContent', newPanel);
+    debugger;
   }
 
   let leftPanelToggle = () => {
@@ -168,78 +159,87 @@
   }
 </script>
 
-{#if windowWidth > 768}
-  <!-- Desktop Layout -->
-  <div class="panel-layout">
-    {#if !leftPanelCollapsed}
-      <div class="panel panel-left" 
-          transition:fly={{x: -300, duration: 300}} 
-          onoutrostart={() => {leftPanelSliding = true; console.log('slideStart');}}
-          onoutroend={() => {leftPanelSliding = false; console.log('slideEnd');}}
-          style="width: {leftPanelWidth}">
-        
-        <div class="panel-header">
-          <PanelSelector value={leftPanelContent} bind:name={leftPanelName} onChange={onLeftPanelChanged} />
-          <button class="collapse-button" onclick={leftPanelToggle}> |← </button>
+
+{#if !store.data.game_loading}
+  {#if windowWidth > 768}
+    <!-- Desktop Layout -->
+    <div class="panel-layout">
+      {#if !leftPanelCollapsed}
+        <div class="panel panel-left" 
+            transition:fly={{x: -300, duration: 300}} 
+            onoutrostart={() => {leftPanelSliding = true; console.log('slideStart');}}
+            onoutroend={() => {leftPanelSliding = false; console.log('slideEnd');}}
+            style="width: {leftPanelWidth}">
+          
+          <div class="panel-header">
+            <PanelSelector value={leftPanelContent} bind:name={leftPanelName} onChange={onLeftPanelChanged} />
+            <button class="collapse-button" onclick={leftPanelToggle}> |← </button>
+          </div>
+          
+          <div class="panel-content">
+            {#if leftPanelContent === 'party'}
+              <Party />
+            {/if}
+          </div>
         </div>
-        
-        <div class="panel-content"></div>
-      </div>
-    {:else if !leftPanelSliding}
-      <div class="panel-collapsed panel-left-collapsed">
-        <button class="collapse-button" onclick={leftPanelToggle}> →| </button>
-        <h3>{leftPanelName}</h3>
-      </div>
-    {/if}
-    
-    <!-- Left resize handle (only shown when left panel is visible) -->
-    <button class="panel-resize-handle left-resize-handle" aria-label="resize-right-panel"
-        style="display: {!leftPanelCollapsed ? 'flex' : 'none'}"
-        onmousedown={(e) => handleMouseDown(e, 'left')}
-    ></button>
-    
-    <!-- Center panel (always visible, flexes to fill space) -->
-    <div class="panel panel-center">
+      {:else if !leftPanelSliding}
+        <div class="panel-collapsed panel-left-collapsed">
+          <button class="collapse-button" onclick={leftPanelToggle}> →| </button>
+          <h3>{leftPanelName}</h3>
+        </div>
+      {/if}
       
-      <div class="panel-header">
-        <PanelSelector value={centerPanelContent} onChange={onCenterPanelChanged} />
-      </div>
-
-      <div class="panel-content"></div>
-    </div>
-    
-    <!-- Right resize handle (only shown when right panel is visible) -->
-    <button class="panel-resize-handle right-resize-handle" aria-label="resize-right-panel"
-        style="display: {!rightPanelCollapsed ? 'flex' : 'none'}"
-        onmousedown={(e) => handleMouseDown(e, 'right')}
-    ></button>
-
-    {#if !rightPanelCollapsed}
-      <div class="panel panel-right" 
-          transition:fly={{x: 300, duration: 300}} 
-          onoutrostart={() => {rightPanelSliding = true; console.log('slideStart');}}
-          onoutroend={() => {rightPanelSliding = false; console.log('slideEnd');}}
-          style="width: {rightPanelWidth}">
+      <!-- Left resize handle (only shown when left panel is visible) -->
+      <button class="panel-resize-handle left-resize-handle" aria-label="resize-right-panel"
+          style="display: {!leftPanelCollapsed ? 'flex' : 'none'}"
+          onmousedown={(e) => handleMouseDown(e, 'left')}
+      ></button>
+      
+      <!-- Center panel (always visible, flexes to fill space) -->
+      <div class="panel panel-center">
         
         <div class="panel-header">
-          <button class="collapse-button" onclick={rightPanelToggle}> →| </button>
-          <PanelSelector value={rightPanelContent} bind:name={rightPanelName} onChange={onRightPanelChanged} />
+          <PanelSelector value={centerPanelContent} onChange={onCenterPanelChanged} />
         </div>
-        
+
         <div class="panel-content"></div>
       </div>
-    {:else if !rightPanelSliding}
-      <div class="panel-collapsed panel-right-collapsed">
-        <button class="collapse-button" onclick={rightPanelToggle}> |← </button>
-        <h3>{rightPanelName}</h3>
-      </div>
-    {/if}
-  </div>
-{:else}
-  <!-- Mobile Layout -->
-  <div class="mobile-layout mobile-only">
+      
+      <!-- Right resize handle (only shown when right panel is visible) -->
+      <button class="panel-resize-handle right-resize-handle" aria-label="resize-right-panel"
+          style="display: {!rightPanelCollapsed ? 'flex' : 'none'}"
+          onmousedown={(e) => handleMouseDown(e, 'right')}
+      ></button>
 
-  </div>
+      {#if !rightPanelCollapsed}
+        <div class="panel panel-right" 
+            transition:fly={{x: 300, duration: 300}} 
+            onoutrostart={() => {rightPanelSliding = true; console.log('slideStart');}}
+            onoutroend={() => {rightPanelSliding = false; console.log('slideEnd');}}
+            style="width: {rightPanelWidth}">
+          
+          <div class="panel-header">
+            <button class="collapse-button" onclick={rightPanelToggle}> →| </button>
+            <PanelSelector value={rightPanelContent} bind:name={rightPanelName} onChange={onRightPanelChanged} />
+          </div>
+          
+          <div class="panel-content"></div>
+        </div>
+      {:else if !rightPanelSliding}
+        <div class="panel-collapsed panel-right-collapsed">
+          <button class="collapse-button" onclick={rightPanelToggle}> |← </button>
+          <h3>{rightPanelName}</h3>
+        </div>
+      {/if}
+    </div>
+  {:else}
+    <!-- Mobile Layout -->
+    <div class="mobile-layout mobile-only">
+
+    </div>
+  {/if}
+{:else}
+    <h1 style="text-align: center; padding-top: 20px;">Loading...</h1>
 {/if}
 
 <style>

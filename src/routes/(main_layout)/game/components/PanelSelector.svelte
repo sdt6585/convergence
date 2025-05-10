@@ -1,13 +1,15 @@
 <script>
   // Props
-  export let value = "player";
-  export let name = "Player";
-  export let onChange = () => {};
+  let {
+    value = 'player',
+    name = 'Player',
+    onChange = () => {}
+  } = $props();
   
   // Default options
   const options = [
     { name: "Player", value: "player" },
-    { name: "Player Ship", value: "player_ship" },
+    { name: "Party", value: "party" },
     { name: "NPC", value: "npc" },
     { name: "Chat/Log", value: "chat" },
     { name: "Radar", value: "radar" },
@@ -16,6 +18,7 @@
   
   // Handle selection change
   function handleChange(event) {
+    debugger;
     value = event.target.value;
     name = event.target.selectedOptions[0].innerText;
     onChange(value);
