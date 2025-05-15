@@ -34,9 +34,10 @@
   let windowWidth = $state(1024);
 
   onMount(async () => {
-    // Load game
+    // Load game as singleton
     let game_id = page.url.searchParams.get('game_id')
-    await store.load_game(game_id);
+    
+    await store.load_game(game_id, true);
 
     // Unmount general mouse listeners
     return () => {
@@ -160,7 +161,7 @@
 </script>
 
 
-{#if !store.data.game_loading}
+{#if store.data.game_loading === false}
   {#if windowWidth > 768}
     <!-- Desktop Layout -->
     <div class="panel-layout">
