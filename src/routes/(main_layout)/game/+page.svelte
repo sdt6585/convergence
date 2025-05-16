@@ -9,9 +9,14 @@
   import { fly } from 'svelte/transition';
   import { page } from '$app/state';
   import { getContext } from 'svelte';
+  import logger from '@utils/logger';
   //Components
   import PanelSelector from './components/PanelSelector.svelte';
   import Party from './components/Party.svelte';
+  import Character from './components/Character.svelte';
+  import Chat from './components/Chat.svelte';
+
+  logger.debug('app', 'Game page script start');
 
   let store = getContext('store');
 
@@ -25,24 +30,42 @@
   let leftPanelCollapsed = $state(false);
   let leftPanelName = $state('Party');
   let leftPanelSliding = $state(false);
-  let centerPanelContent = $state('chat');
+  let centerPanelContent = $state('character');
   let rightPanelWidth = $state('400px');
   let rightPanelContent = $state('npc');
   let rightPanelCollapsed = $state(false);
-  let rightPanelName = $state('NPC');
+  let rightPanelName = $state('chat');
   let rightPanelSliding = $state(false);
   let windowWidth = $state(1024);
+  
+  // Character selection state for cross-panel communication
+  let selectedCharacter = $state(null);
 
   onMount(async () => {
+    logger.debug('app', 'Game page mounted');
     // Load game as singleton
     let game_id = page.url.searchParams.get('game_id')
     
     await store.load_game(game_id, true);
+    
+    // Add window resize listener
+    if (browser) {
+      const handleResize = () => {
+        windowWidth = window.innerWidth;
+      };
+      
+      window.addEventListener('resize', handleResize);
+    }
 
-    // Unmount general mouse listeners
+    // Unmount general listeners
     return () => {
+      logger.debug('app', 'Game page unmounted');
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      
+      if (browser) {
+        window.removeEventListener('resize', handleResize);
+      }
     };
   });
 
@@ -65,8 +88,9 @@
    * Panel change events
    */
   let onLeftPanelChanged = (newPanel) => {
+    logger.debug('app', 'left panel changed', newPanel);
+    leftPanelContent = newPanel;
     localStorage.setItem('leftPanelContent', newPanel);
-    debugger;
   }
 
   let leftPanelToggle = () => {
@@ -74,17 +98,42 @@
     localStorage.setItem('leftPanelCollapsed', leftPanelCollapsed.toString());
   }
 
+  let onCenterPanelChanged = (newPanel) => {
+    logger.debug('app', 'center panel changed', newPanel);
+    centerPanelContent = newPanel;
+    localStorage.setItem('centerPanelContent', newPanel);
+  }
+
   let onRightPanelChanged = (newPanel) => {
+    logger.debug('app', 'right panel changed', newPanel);
+    rightPanelContent = newPanel;
     localStorage.setItem('rightPanelContent', newPanel);
   }
 
-  let onCenterPanelChanged = (newPanel) => {
-    localStorage.setItem('centerPanelContent', newPanel);
-  }
-  
   let rightPanelToggle = () => {
     rightPanelCollapsed = !rightPanelCollapsed;
     localStorage.setItem('rightPanelCollapsed', rightPanelCollapsed.toString());
+  }
+
+  /**
+   * Character selection handler
+   */
+  //TODO - this is a hack to get the character selected event to work - this shouldn't be right panel specific
+  function handleCharacterSelect(event) {
+    selectedCharacter = event.detail;
+    logger.debug('app', 'Character selected in game page', selectedCharacter);
+    
+    // If the right panel isn't showing character details, switch it
+    if (rightPanelContent !== 'character') {
+      rightPanelContent = 'character';
+      rightPanelName = 'Character';
+      localStorage.setItem('rightPanelContent', rightPanelContent);
+    }
+    
+    // If the right panel is collapsed, uncollapse it
+    if (rightPanelCollapsed) {
+      rightPanelToggle();
+    }
   }
 
   /**
@@ -179,7 +228,11 @@
           
           <div class="panel-content">
             {#if leftPanelContent === 'party'}
-              <Party />
+              <Party on:select-character={handleCharacterSelect} />
+            {:else if leftPanelContent === 'character'}
+              <Character selectedCharacter={selectedCharacter} />
+            {:else if leftPanelContent === 'chat'}
+              <Chat />
             {/if}
           </div>
         </div>
@@ -203,7 +256,15 @@
           <PanelSelector value={centerPanelContent} onChange={onCenterPanelChanged} />
         </div>
 
-        <div class="panel-content"></div>
+        <div class="panel-content">
+          {#if centerPanelContent === 'party'}
+            <Party on:select-character={handleCharacterSelect} />
+          {:else if centerPanelContent === 'character'}
+            <Character selectedCharacter={selectedCharacter} />
+          {:else if centerPanelContent === 'chat'}
+            <Chat />
+          {/if}
+        </div>
       </div>
       
       <!-- Right resize handle (only shown when right panel is visible) -->
@@ -224,7 +285,15 @@
             <PanelSelector value={rightPanelContent} bind:name={rightPanelName} onChange={onRightPanelChanged} />
           </div>
           
-          <div class="panel-content"></div>
+          <div class="panel-content">
+            {#if rightPanelContent === 'party'}
+              <Party on:select-character={handleCharacterSelect} />
+            {:else if rightPanelContent === 'character'}
+              <Character selectedCharacter={selectedCharacter} />
+            {:else if rightPanelContent === 'chat'}
+              <Chat />
+            {/if}
+          </div>
         </div>
       {:else if !rightPanelSliding}
         <div class="panel-collapsed panel-right-collapsed">
@@ -235,8 +304,61 @@
     </div>
   {:else}
     <!-- Mobile Layout -->
-    <div class="mobile-layout mobile-only">
-
+    <div class="mobile-layout">
+      <div class="mobile-tabs">
+        <button 
+          class="mobile-tab-button {leftPanelContent === 'party' || leftPanelContent.startsWith('party') ? 'active' : ''}" 
+          onclick={() => onLeftPanelChanged('party')}
+        >
+          Party
+        </button>
+        <button 
+          class="mobile-tab-button {centerPanelContent === 'chat' ? 'active' : ''}" 
+          onclick={() => onCenterPanelChanged('chat')}
+        >
+          Chat
+        </button>
+        <button 
+          class="mobile-tab-button {rightPanelContent === 'character' ? 'active' : ''}" 
+          onclick={() => onRightPanelChanged('character')}
+        >
+          Character
+        </button>
+      </div>
+      
+      <div class="mobile-panel">
+        <div class="mobile-panel-header">
+          <div class="tab-switcher">
+            <button 
+              class="tab-button {leftPanelContent === 'party' ? 'active' : ''}"
+              onclick={() => onLeftPanelChanged('party')}
+            >
+              Party Tree
+            </button>
+            <button 
+              class="tab-button {leftPanelContent === 'character' ? 'active' : ''}"
+              onclick={() => onLeftPanelChanged('character')}
+            >
+              Character Sheet
+            </button>
+            <button 
+              class="tab-button {leftPanelContent === 'chat' ? 'active' : ''}"
+              onclick={() => onLeftPanelChanged('chat')}
+            >
+              Chat
+            </button>
+          </div>
+        </div>
+        <div class="mobile-panel-content">
+          {#if leftPanelContent === 'party'}
+            <Party on:select-character={handleCharacterSelect} />
+          {:else if leftPanelContent === 'character'}
+            <Character selectedCharacter={selectedCharacter} />
+          {:else if leftPanelContent === 'chat'}
+            <Chat />
+          {/if}
+        </div>
+      </div>
     </div>
   {/if}
 {:else}
@@ -315,5 +437,95 @@
     height: 30px;
     width: 30px;
   }
+  
+  /* Mobile Styles */
+  .mobile-layout {
+    display: none;
+    height: 100%;
+    overflow-y: auto;
+  }
+  
+  @media (max-width: 767px) {
+    .mobile-layout {
+      display: block;
+    }
+  }
+  
+  .mobile-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  
+  .mobile-panel-header {
+    padding: 10px;
+    background-color: rgba(40, 40, 40, 0.9);
+    border-bottom: 1px solid #444;
+  }
+  
+  .mobile-panel-content {
+    flex: 1;
+    overflow-y: auto;
+    height: calc(100% - 50px);
+  }
 
+  .mobile-tabs {
+    display: flex;
+    justify-content: space-around;
+    background-color: rgba(40, 40, 40, 0.9);
+    border-bottom: 1px solid #444;
+  }
+  
+  .mobile-tab-button {
+    padding: 10px;
+    flex: 1;
+    background-color: transparent;
+    border: none;
+    color: #ccc;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  
+  .mobile-tab-button.active {
+    background-color: rgba(60, 60, 60, 0.9);
+    color: #fff;
+    border-bottom: 2px solid #888;
+  }
+  
+  .tab-switcher {
+    display: flex;
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  
+  .tab-button {
+    padding: 8px 12px;
+    background-color: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #ccc;
+    font-size: 0.9em;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  
+  .tab-button.active {
+    color: #fff;
+    border-bottom: 2px solid #888;
+    background-color: rgba(60, 60, 60, 0.5);
+  }
+  
+  .chat-placeholder {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    font-style: italic;
+    opacity: 0.7;
+  }
 </style>
+
+<script context="module">
+  logger.debug('app', 'Game page module script end');
+</script>

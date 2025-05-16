@@ -12,6 +12,9 @@
   import { onMount } from 'svelte';
   import { page } from '$app/state';
   import { redirect } from '@sveltejs/kit';
+  import logger from '@utils/logger'; //this replaces console.log/error/debug/etc
+
+  logger.debug('app', 'Layout script start');
 
   //Check if we're logged in or not
   let store = $state(new DataStore);
@@ -22,6 +25,18 @@
   let onMenuClick = (e) => {menuOpen = !menuOpen};
 
   onMount(() => {
+    logger.debug('app', 'Layout mounted');
+
+    // Set up global error handler
+    window.onerror = (message, source, lineno, colno, error) => {
+      logger.error('Uncaught error:', { message, source, lineno, colno, error });
+    };
+
+    // Set up unhandled promise rejection handler
+    window.onunhandledrejection = (event) => {
+      logger.error('Unhandled promise rejection:', event.reason);
+    };
+
     // Make sure we're logged in and have the right to access this
     async function checkAuth () {
       await store.checkAuth();
@@ -36,6 +51,10 @@
     }
 
     afterNavigate(checkAuth); 
+
+    return () => {
+      logger.debug('app', 'Layout unmounted');
+    };
   });
 </script>
 
@@ -91,3 +110,7 @@
 <style>
   
 </style>
+
+<script context="module">
+  logger.debug('app', 'Layout module script end');
+</script>

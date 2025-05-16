@@ -1,6 +1,8 @@
 // Supabase
 import { createClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+// Utility
+import logger from '@utils/logger';
 
 
 export default class DataStore {
@@ -38,6 +40,7 @@ export default class DataStore {
   ]
   
   constructor (options) {
+    logger.debug('store', 'DataStore constructor start');
     //Supabase
     this.supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
 
@@ -140,17 +143,22 @@ export default class DataStore {
     for (let property of Object.getOwnPropertyNames(DataStore.prototype)) {
       try {this[property] = DataStore.prototype[property].bind(this);} catch (e) {}
     }
+    logger.debug('store', 'DataStore constructor complete');
   }
 
   //Used to udpate the data for a single element or array
   updateData (table, item, isSingleton = false) {
+    logger.debug('store', 'Updating data for table:', table.name, 'item:', item);
     if (typeof table === 'string') {
       table = this.tables.find((t) => {t.name === table});
     }
+    logger.debug('store', 'Updating data for table:', table.name, 'item:', item);
+    
     //Try and find if it exists already
-    let existingItem = this.data[table.plural].find((el) => {el[table.id] === item[table.id]});
+    let existingItem = this.data[table.plural].find((el) => el[table.id] === item[table.id]);
 
     if (existingItem) {
+      logger.debug('store', 'Updating existing item in', table.plural);
       //Copy properties
       for (let prop of Object.getOwnPropertyNames(item)) {
         existingItem[prop] = item[prop]
@@ -160,10 +168,12 @@ export default class DataStore {
     } else {
       // Set it as the singleton if it is - has to be here or the loading indicators are useless!
       if (isSingleton) {
+        logger.debug('store', 'Setting singleton data for', table.name);
         this.data[table.name] = item;
       }
 
       //Push it into the array if it doesn't already exist
+      logger.debug('store', 'Adding new item to', table.plural);
       this.data[table.plural].push(item);
 
       // Add helper function for parent item if it can be a singleton
@@ -377,6 +387,7 @@ export default class DataStore {
       if (typeof table === 'string') {
         table = this.tables.find((t) => t.name === table);
       }
+      logger.debug('store', 'Starting loadMany for', table.name);
       
       this.data[table.plural + '_loading'] = true;
 
@@ -399,16 +410,19 @@ export default class DataStore {
       const result = await query;
       data = result.data;
 
+      logger.debug('store', 'Received data for', table.name, data);
+      
       //Update references and helper functions
       for (const [i, item] of data.entries()) {
         data[i] = this.updateData(table, item, isSingleton);
       }
 
     } catch (e) {
-      console.log(e.message);
+      logger.error('store', 'Error in loadMany:', e);
       throw e;
     } finally {
       this.data[table.plural + '_loading'] = false;
+      logger.debug('store', 'Completed loadMany for', table.name);
     }
 
     
@@ -417,6 +431,16 @@ export default class DataStore {
 
   async loadOne (table, id, isSingleton = false) {
     let data;
+    
+    if (typeof table === 'string') {
+      table = this.tables.find((t) => {t.name === table});
+    }
+    logger.debug('store', 'Starting loadOne for', table.name, 'id:', id);
+    
+    if (isSingleton) {
+      this.data[table.name + '_loading'] = true;
+    }
+    
     try {
       //Id should be the id or blank if it's another singleton - it could be a query modifier function though
       let queryModifier;
@@ -437,25 +461,23 @@ export default class DataStore {
         }
       }
 
-      //Notify that we're loading if it's a singleton (loadMany call below will do the same for the plural)
-      if (isSingleton) {
-        this.data[table.name + '_loading'] = true;
-      }
-
       //Using the loadMany function ensure that it's in the main array for this element as well for any potential async updates
       data = await this.loadMany(table, queryModifier, isSingleton);
 
       if (data.length > 1) {
+        logger.error('store', 'Multiple items returned for singleton load');
         throw new Error('More than one item returned from load one function')
       }
 
     } catch (e) {
+      logger.error('store', 'Error in loadOne:', e);
       //Rethrow
       throw e;
     } finally {
       //Notify that we are loaded
       if (isSingleton) {
         this.data[table.name + '_loading'] = false;
+        logger.debug('store', 'Completed loadOne for singleton', table.name);
       }
     }
 

@@ -2,8 +2,19 @@
   // Utility
   import { getPath } from '@utils/navigation'
   import { getContext } from 'svelte';
-
+  import { onMount } from 'svelte';
+  import logger from '@utils/logger';
+  // Data store
   const store = getContext('store');
+
+  logger.debug('app', 'Home page script start');
+
+  onMount(() => {
+    logger.debug('app', 'Home page mounted');
+    return () => {
+      logger.debug('app', 'Home page unmounted');
+    };
+  });
   
 </script>
 
@@ -63,3 +74,7 @@
     text-decoration: none;
   }
 </style>
+
+<script context="module">
+  logger.debug('app', 'Home page module script');
+</script>

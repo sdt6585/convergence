@@ -8,15 +8,23 @@
   import { browser } from '$app/environment';
   import { fly } from 'svelte/transition';
   import { getContext } from 'svelte';
+  import logger from '@utils/logger';
   //Components
   import Modal from '@components/Modal.svelte';
+
+  logger.debug('app', 'Games page script start');
 
   /**
    * Make sure games is loaded
    */
   let store = getContext('store');
   onMount(() => {
+    logger.debug('app', 'Games page mounted');
     store.load_games();
+    
+    return () => {
+      logger.debug('app', 'Games page unmounted');
+    };
   });
 
   /**
@@ -129,3 +137,7 @@
     margin-top: 1rem;
   }
 </style>
+
+<script context="module">
+  logger.debug('app', 'Games page module script end');
+</script>
