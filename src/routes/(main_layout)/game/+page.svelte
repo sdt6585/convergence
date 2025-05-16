@@ -248,7 +248,7 @@
 
         <div class="panel-content">
           {#if centerPanelContent === 'party'}
-            <Party on:select-character={handleCharacterSelect} />
+            <Party />
           {:else if centerPanelContent === 'character'}
             <Character selectedCharacter={selectedCharacter} />
           {:else if centerPanelContent === 'chat'}
@@ -277,7 +277,7 @@
           
           <div class="panel-content">
             {#if rightPanelContent === 'party'}
-              <Party on:select-character={handleCharacterSelect} />
+              <Party />
             {:else if rightPanelContent === 'character'}
               <Character selectedCharacter={selectedCharacter} />
             {:else if rightPanelContent === 'chat'}
@@ -298,7 +298,7 @@
       <div class="mobile-panel">
         <div class="mobile-panel-content">
           {#if mobilePanelContent === 'party'}
-            <Party on:select-character={handleCharacterSelect} />
+            <Party />
           {:else if mobilePanelContent === 'character'}
             <Character selectedCharacter={selectedCharacter} />
           {:else if mobilePanelContent === 'chat'}
@@ -373,8 +373,7 @@
   .panel-resize-handle {
     flex-direction: column;
     background-color: grey;
-    border: 1px solid lightgray;
-    width: 6px;
+    width: 5px;
     cursor: ew-resize
   }
 
@@ -435,15 +434,14 @@
   .mobile-panel {
     display: flex;
     flex-direction: column;
-    height: 100%;
-    position: relative;
+    flex: 1;
   }
   
   .mobile-panel-content {
     flex: 1;
     overflow-y: auto;
-    height: calc(100vh - 60px);
-    padding-bottom: 60px; /* Ensure content doesn't get hidden behind the nav bar */
+    height: calc(100vh - 126px);
+    max-height: calc(100vh - 126px);
   }
   
   .mobile-nav {
@@ -451,12 +449,7 @@
     justify-content: space-around;
     background-color: rgba(40, 40, 40, 0.9);
     border-top: 1px solid #444;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
     height: 60px;
-    z-index: 10;
   }
   
   .mobile-nav-button {

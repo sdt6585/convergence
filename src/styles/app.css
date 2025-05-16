@@ -147,8 +147,21 @@ header > * {
   z-index: 11
 }
 
-.nav-menu a {
+.nav-menu a, .nav-menu button{
   font-size: 1.3rem;
+  text-align: right;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+}
+
+.nav-menu button svg {
+  display: inline-block;
+  width: 23px;
+  height: 23px;
+  padding: 0;
+  position: relative;
+  top: 4px;
 }
 
 
