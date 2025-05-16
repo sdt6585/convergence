@@ -248,7 +248,7 @@
 
         <div class="panel-content">
           {#if centerPanelContent === 'party'}
-            <Party on:select-character={handleCharacterSelect} />
+            <Party />
           {:else if centerPanelContent === 'character'}
             <Character selectedCharacter={selectedCharacter} />
           {:else if centerPanelContent === 'chat'}
@@ -277,7 +277,7 @@
           
           <div class="panel-content">
             {#if rightPanelContent === 'party'}
-              <Party on:select-character={handleCharacterSelect} />
+              <Party />
             {:else if rightPanelContent === 'character'}
               <Character selectedCharacter={selectedCharacter} />
             {:else if rightPanelContent === 'chat'}
@@ -298,7 +298,7 @@
       <div class="mobile-panel">
         <div class="mobile-panel-content">
           {#if mobilePanelContent === 'party'}
-            <Party on:select-character={handleCharacterSelect} />
+            <Party />
           {:else if mobilePanelContent === 'character'}
             <Character selectedCharacter={selectedCharacter} />
           {:else if mobilePanelContent === 'chat'}
