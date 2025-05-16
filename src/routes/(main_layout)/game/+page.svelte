@@ -373,8 +373,7 @@
   .panel-resize-handle {
     flex-direction: column;
     background-color: grey;
-    border: 1px solid lightgray;
-    width: 6px;
+    width: 5px;
     cursor: ew-resize
   }
 
