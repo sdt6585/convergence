@@ -27,7 +27,10 @@
         hp_max: 100,
         shields: 80,
         shieldsMax: 100,
-        type: 'ship'
+        type: 'ship',
+        bays: [
+
+        ]
       },
       children: [
         {
@@ -741,7 +744,7 @@
                           </span>
                         </button>
                         {#if child.item.abilities.expanded}
-                          <ul class="character-attributes container children">
+                          <ul class="character-attributes children">
                             {#each child.item.abilities.children as ability}
                               <li class="skill">{ability.name}: {ability.description}</li>
                             {/each}
@@ -839,9 +842,12 @@
       list-style-type: none;
     }
 
-    .character-attributes li::before {
+    .character-attributes li {
+       padding-left:10px;
+   }
+
+    .character-attributes li::marker {
        content: "-";
-       padding-right: 5px; 
    }
     
     .equipment-container {
@@ -874,7 +880,7 @@
     height: 100%;
     display: flex;
     flex-direction: column;
-    padding: 10px;
+    padding: 0;
     overflow-y: auto;
     color: #e0e0e0;
   }

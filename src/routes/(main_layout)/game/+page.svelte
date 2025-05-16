@@ -38,6 +38,9 @@
   let rightPanelSliding = $state(false);
   let windowWidth = $state(1024);
   
+  // Mobile-specific state
+  let mobilePanelContent = $state('party');
+  
   // Character selection state for cross-panel communication
   let selectedCharacter = $state(null);
 
@@ -81,6 +84,7 @@
     rightPanelWidth = localStorage.getItem('rightPanelWidth') || rightPanelWidth;
     rightPanelContent = localStorage.getItem('rightPanelContent') || rightPanelContent;
     rightPanelCollapsed = localStorage.getItem('rightPanelCollapsed') === 'true';
+    mobilePanelContent = localStorage.getItem('mobilePanelContent') || mobilePanelContent;
     windowWidth = window.innerWidth;
   }
 
@@ -114,26 +118,12 @@
     rightPanelCollapsed = !rightPanelCollapsed;
     localStorage.setItem('rightPanelCollapsed', rightPanelCollapsed.toString());
   }
-
-  /**
-   * Character selection handler
-   */
-  //TODO - this is a hack to get the character selected event to work - this shouldn't be right panel specific
-  function handleCharacterSelect(event) {
-    selectedCharacter = event.detail;
-    logger.debug('app', 'Character selected in game page', selectedCharacter);
-    
-    // If the right panel isn't showing character details, switch it
-    if (rightPanelContent !== 'character') {
-      rightPanelContent = 'character';
-      rightPanelName = 'Character';
-      localStorage.setItem('rightPanelContent', rightPanelContent);
-    }
-    
-    // If the right panel is collapsed, uncollapse it
-    if (rightPanelCollapsed) {
-      rightPanelToggle();
-    }
+  
+  // Mobile panel change handler
+  let onMobilePanelChanged = (newPanel) => {
+    logger.debug('app', 'mobile panel changed', newPanel);
+    mobilePanelContent = newPanel;
+    localStorage.setItem('mobilePanelContent', newPanel);
   }
 
   /**
@@ -228,7 +218,7 @@
           
           <div class="panel-content">
             {#if leftPanelContent === 'party'}
-              <Party on:select-character={handleCharacterSelect} />
+              <Party />
             {:else if leftPanelContent === 'character'}
               <Character selectedCharacter={selectedCharacter} />
             {:else if leftPanelContent === 'chat'}
@@ -303,60 +293,45 @@
       {/if}
     </div>
   {:else}
-    <!-- Mobile Layout -->
+    <!-- Mobile Layout - Updated with single panel and bottom navigation -->
     <div class="mobile-layout">
-      <div class="mobile-tabs">
-        <button 
-          class="mobile-tab-button {leftPanelContent === 'party' || leftPanelContent.startsWith('party') ? 'active' : ''}" 
-          onclick={() => onLeftPanelChanged('party')}
-        >
-          Party
-        </button>
-        <button 
-          class="mobile-tab-button {centerPanelContent === 'chat' ? 'active' : ''}" 
-          onclick={() => onCenterPanelChanged('chat')}
-        >
-          Chat
-        </button>
-        <button 
-          class="mobile-tab-button {rightPanelContent === 'character' ? 'active' : ''}" 
-          onclick={() => onRightPanelChanged('character')}
-        >
-          Character
-        </button>
-      </div>
-      
       <div class="mobile-panel">
-        <div class="mobile-panel-header">
-          <div class="tab-switcher">
-            <button 
-              class="tab-button {leftPanelContent === 'party' ? 'active' : ''}"
-              onclick={() => onLeftPanelChanged('party')}
-            >
-              Party Tree
-            </button>
-            <button 
-              class="tab-button {leftPanelContent === 'character' ? 'active' : ''}"
-              onclick={() => onLeftPanelChanged('character')}
-            >
-              Character Sheet
-            </button>
-            <button 
-              class="tab-button {leftPanelContent === 'chat' ? 'active' : ''}"
-              onclick={() => onLeftPanelChanged('chat')}
-            >
-              Chat
-            </button>
-          </div>
-        </div>
         <div class="mobile-panel-content">
-          {#if leftPanelContent === 'party'}
+          {#if mobilePanelContent === 'party'}
             <Party on:select-character={handleCharacterSelect} />
-          {:else if leftPanelContent === 'character'}
+          {:else if mobilePanelContent === 'character'}
             <Character selectedCharacter={selectedCharacter} />
-          {:else if leftPanelContent === 'chat'}
+          {:else if mobilePanelContent === 'chat'}
             <Chat />
           {/if}
+        </div>
+        
+        <div class="mobile-nav">
+          <button class="mobile-nav-button {mobilePanelContent === 'party' ? 'active' : ''}" 
+                  onclick={() => onMobilePanelChanged('party')}>
+            <svg viewBox="0 0 24 24" width="24" height="24">
+              <path d="M16,21V19C16,17.9 15.1,17 14,17H8C6.9,17 6,17.9 6,19V21H4V19C4,16.8 5.8,15 8,15H14C16.2,15 18,16.8 18,19V21H16Z" />
+              <path d="M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z" />
+              <path d="M13,3V2H11V3H5V1H19V3H13Z" />
+            </svg>
+            <span>Party</span>
+          </button>
+          
+          <button class="mobile-nav-button {mobilePanelContent === 'chat' ? 'active' : ''}" 
+                  onclick={() => onMobilePanelChanged('chat')}>
+            <svg viewBox="0 0 24 24" width="24" height="24">
+              <path d="M20,2H4A2,2 0 0,0 2,4V22L6,18H20A2,2 0 0,0 22,16V4A2,2 0 0,0 20,2M6,9H18V11H6M14,14H6V12H14M18,8H6V6H18" />
+            </svg>
+            <span>Chat</span>
+          </button>
+          
+          <button class="mobile-nav-button {mobilePanelContent === 'character' ? 'active' : ''}" 
+                  onclick={() => onMobilePanelChanged('character')}>
+            <svg viewBox="0 0 24 24" width="24" height="24">
+              <path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z" />
+            </svg>
+            <span>Character</span>
+          </button>
         </div>
       </div>
     </div>
@@ -407,6 +382,12 @@
     display: flex;
   }
 
+  .panel-content {
+    max-height: calc(100vh - 120px);
+    height: calc(100vh - 120px);
+    overflow-x: auto;
+  }
+
   .collapse-button {
     background-color: rgba(100, 100, 100, .5);
     border: none;
@@ -438,16 +419,16 @@
     width: 30px;
   }
   
-  /* Mobile Styles */
+  /* Mobile Styles - Updated */
   .mobile-layout {
     display: none;
-    height: 100%;
-    overflow-y: auto;
+    height: calc(100vh - 66px);
+    flex-direction: column;
   }
   
   @media (max-width: 767px) {
     .mobile-layout {
-      display: block;
+      display: flex;
     }
   }
   
@@ -455,74 +436,54 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-  }
-  
-  .mobile-panel-header {
-    padding: 10px;
-    background-color: rgba(40, 40, 40, 0.9);
-    border-bottom: 1px solid #444;
+    position: relative;
   }
   
   .mobile-panel-content {
     flex: 1;
     overflow-y: auto;
-    height: calc(100% - 50px);
+    height: calc(100vh - 60px);
+    padding-bottom: 60px; /* Ensure content doesn't get hidden behind the nav bar */
   }
-
-  .mobile-tabs {
+  
+  .mobile-nav {
     display: flex;
     justify-content: space-around;
     background-color: rgba(40, 40, 40, 0.9);
-    border-bottom: 1px solid #444;
+    border-top: 1px solid #444;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    z-index: 10;
   }
   
-  .mobile-tab-button {
-    padding: 10px;
+  .mobile-nav-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     flex: 1;
     background-color: transparent;
     border: none;
     color: #ccc;
-    font-weight: bold;
+    padding: 8px 0;
     cursor: pointer;
   }
   
-  .mobile-tab-button.active {
+  .mobile-nav-button svg {
+    fill: currentColor;
+    margin-bottom: 4px;
+  }
+  
+  .mobile-nav-button.active {
+    color: #fff;
     background-color: rgba(60, 60, 60, 0.9);
-    color: #fff;
-    border-bottom: 2px solid #888;
   }
   
-  .tab-switcher {
-    display: flex;
-    width: 100%;
-    overflow-x: auto;
-    scrollbar-width: thin;
-  }
-  
-  .tab-button {
-    padding: 8px 12px;
-    background-color: transparent;
-    border: none;
-    border-bottom: 2px solid transparent;
-    color: #ccc;
-    font-size: 0.9em;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  
-  .tab-button.active {
-    color: #fff;
-    border-bottom: 2px solid #888;
-    background-color: rgba(60, 60, 60, 0.5);
-  }
-  
-  .chat-placeholder {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100%;
-    font-style: italic;
-    opacity: 0.7;
+  .mobile-nav-button span {
+    font-size: 0.8em;
   }
 </style>
 
