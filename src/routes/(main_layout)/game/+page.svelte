@@ -434,15 +434,14 @@
   .mobile-panel {
     display: flex;
     flex-direction: column;
-    height: 100%;
-    position: relative;
+    flex: 1;
   }
   
   .mobile-panel-content {
     flex: 1;
     overflow-y: auto;
-    height: calc(100vh - 60px);
-    padding-bottom: 60px; /* Ensure content doesn't get hidden behind the nav bar */
+    height: calc(100vh - 126px);
+    max-height: calc(100vh - 126px);
   }
   
   .mobile-nav {
@@ -450,12 +449,7 @@
     justify-content: space-around;
     background-color: rgba(40, 40, 40, 0.9);
     border-top: 1px solid #444;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
     height: 60px;
-    z-index: 10;
   }
   
   .mobile-nav-button {

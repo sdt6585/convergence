@@ -24,6 +24,11 @@
   let menuOpen = $state(false);
   let onMenuClick = (e) => {menuOpen = !menuOpen};
 
+  //Menu options
+  function goFullScreen() {
+    document.documentElement.requestFullscreen();
+  }
+
   onMount(() => {
     logger.debug('app', 'Layout mounted');
 
@@ -90,14 +95,37 @@
       <span style="flex: 1;">Menu</span>
     </div>
     <!-- Menu content -->
-    <a href="{getPath('/')}" onclick={onMenuClick}>Home</a>
+    <a class="menu-option" href="{getPath('/')}" onclick={onMenuClick}>Home</a>
     {#if store.user } 
-      <a href="{getPath('/games')}" onclick={onMenuClick}>View Games</a>
-      <a href="{getPath('/logout')}" onclick={onMenuClick}>Logout</a>
+      <a class="menu-option" href="{getPath('/games')}" onclick={onMenuClick}>View Games</a>
+      <a class="menu-option" href="{getPath('/logout')}" onclick={onMenuClick}>Logout</a>
     {:else}
-      <a href="{getPath('/login')}" onclick={onMenuClick}>Login</a>
-      <a href="{getPath('/signup')}" onclick={onMenuClick}>Sign Up</a>
+      <a class="menu-option" href="{getPath('/login')}" onclick={onMenuClick}>Login</a>
+      <a class="menu-option" href="{getPath('/signup')}" onclick={onMenuClick}>Sign Up</a>
     {/if}
+    <button class="menu-option" onclick={goFullScreen}>
+      Fullscreen
+      <svg class="fullscreen-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <!-- Rounded outer frame -->
+        <rect x="1" y="1" width="22" height="22" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        
+        <!-- Top-left corner and arrow -->
+        <path d="M4 4 L9 4 L9 6 L6 6 L6 9 L4 9 Z" fill="currentColor"/>
+        <path d="M9 9 L6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        
+        <!-- Top-right corner and arrow -->
+        <path d="M20 4 L15 4 L15 6 L18 6 L18 9 L20 9 Z" fill="currentColor"/>
+        <path d="M15 9 L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        
+        <!-- Bottom-left corner and arrow -->
+        <path d="M4 20 L9 20 L9 18 L6 18 L6 15 L4 15 Z" fill="currentColor"/>
+        <path d="M9 15 L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        
+        <!-- Bottom-right corner and arrow -->
+        <path d="M20 20 L15 20 L15 18 L18 18 L18 15 L20 15 Z" fill="currentColor"/>
+        <path d="M15 15 L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
   </div>
   {/if}
   
@@ -108,7 +136,6 @@
 </div>
 
 <style>
-  
 </style>
 
 <script context="module">
