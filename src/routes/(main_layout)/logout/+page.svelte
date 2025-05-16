@@ -4,6 +4,10 @@
   import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
   import { goto } from '$app/navigation';
   import { getPath } from '@utils/navigation';
+  import logger from '@utils/logger';
+  import { onMount } from 'svelte';
+
+  logger.debug('app', 'Logout page script start');
 
   // Initialize Supabase client
   const supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
@@ -34,6 +38,13 @@
       errorMessage = error.message;
     }
   })();
+
+  onMount(() => {
+    logger.debug('app', 'Logout page mounted');
+    return () => {
+      logger.debug('app', 'Logout page unmounted');
+    };
+  });
 </script>
 
 <div class="auth-container">
@@ -57,3 +68,7 @@
 <style>
 
 </style>
+
+<script context="module">
+  logger.debug('app', 'Logout page module script');
+</script>

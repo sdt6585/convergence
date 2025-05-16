@@ -1,4 +1,7 @@
 <script>
+  // Utility
+  import logger from '@utils/logger';
+
   // Props
   let {
     value = 'player',
@@ -8,8 +11,8 @@
   
   // Default options
   const options = [
-    { name: "Player", value: "player" },
     { name: "Party", value: "party" },
+    { name: "Character", value: "character" },
     { name: "NPC", value: "npc" },
     { name: "Chat/Log", value: "chat" },
     { name: "Radar", value: "radar" },
@@ -18,7 +21,7 @@
   
   // Handle selection change
   function handleChange(event) {
-    debugger;
+    logger.debug('app', 'PanelSelector handleChange', event.target.value);
     value = event.target.value;
     name = event.target.selectedOptions[0].innerText;
     onChange(value);

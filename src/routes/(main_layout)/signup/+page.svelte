@@ -1,6 +1,8 @@
 <script>
   import { createClient } from '@supabase/supabase-js';
   import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, PUBLIC_URL } from '$env/static/public';
+  import logger from '@utils/logger';
+  import { onMount } from 'svelte';
   
   const supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
   
@@ -11,6 +13,8 @@
   let errorMessage = $state('');
   let successMessage = $state('');
   
+  logger.debug('app', 'Signup page script start');
+
   async function handleSignup(event) {
     event.preventDefault();
     isLoading = true;
@@ -62,6 +66,13 @@
       isLoading = false;
     }
   }
+
+  onMount(() => {
+    logger.debug('app', 'Signup page mounted');
+    return () => {
+      logger.debug('app', 'Signup page unmounted');
+    };
+  });
 </script>
 
 <div class="auth-container">
@@ -125,3 +136,7 @@
 <style>
   
 </style>
+
+<script context="module">
+  logger.debug('app', 'Signup page module script');
+</script>

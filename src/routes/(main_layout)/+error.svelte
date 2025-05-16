@@ -2,6 +2,21 @@
 <script>
   import { page } from '$app/state'
   import { getPath } from '@utils/navigation';
+  import logger from '@utils/logger';
+  import { onMount } from 'svelte';
+
+  logger.debug('app', 'Error page script start');
+
+  onMount(() => {
+    logger.debug('app', 'Error page mounted');
+    return () => {
+      logger.debug('app', 'Error page unmounted');
+    };
+  });
+</script>
+
+<script context="module">
+  logger.debug('app', 'Error page module script');
 </script>
 
 <div class="error-container">

@@ -8,6 +8,10 @@
   // Utility
   import { getPath } from '@utils/navigation';
   import { goto } from '$app/navigation';
+  import logger from '@utils/logger';
+  import { onMount } from 'svelte';
+
+  logger.debug('app', 'Login page script start');
 
   // Initialize Supabase client
   const supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
@@ -48,6 +52,13 @@
     console.log('Google login clicked');
     // Would implement Google OAuth flow here
   }
+
+  onMount(() => {
+    logger.debug('app', 'Login page mounted');
+    return () => {
+      logger.debug('app', 'Login page unmounted');
+    };
+  });
 </script>
 
 <div class="auth-container">
@@ -161,3 +172,7 @@
     }
   }
 </style>
+
+<script context="module">
+  logger.debug('app', 'Login page module script end');
+</script>
