@@ -34,6 +34,7 @@ jobs:
           PUBLIC_SUPABASE_URL: ${{ secrets.PUBLIC_SUPABASE_URL }}
           PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PUBLIC_SUPABASE_ANON_KEY }}
           PUBLIC_URL: ${{ secrets.PUBLIC_URL }}
+          PUBLIC_LOG_LEVEL: ${{ secrets.PUBLIC_LOG_LEVEL }}
         run: npm run build:prod
         
       - name: Upload artifact
