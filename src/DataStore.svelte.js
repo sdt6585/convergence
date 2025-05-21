@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 // Utility
 import logger from '@utils/logger';
+// Model classes
+import * as Models from '@lib/data';
 
 
 export default class DataStore {
@@ -24,19 +26,230 @@ export default class DataStore {
       {table: 'character', type: 'has-many'},
       {table: 'planet', type: 'has-many'},
       {table: 'star_system', type: 'has-many'},
-    ]},
+    ], realtime: {
+      filter: (gameId) => `id=eq.${gameId}`
+    }},
     {name: 'player', singleton: {parent: 'game'}, relationships: [
       {table: 'character', type: 'has-many'}
-    ]},
+    ], realtime: {
+      filter: (gameId) => `game_id=eq.${gameId}`
+    }},
     {name: 'ship', relationships: [
       {table: 'character', type: 'has-many'}
     ]},
-    {name: 'character', singleton: {parent: 'game'}, relationships: ['player']},
     {name: 'planet', relationships: [
       {table: 'character', type: 'has-many'}
-    ]},
-    {name: 'star_system', singleton: {parent: 'game'},relationships: ['star_system_object']},
-    {name: 'star_system_object', refTable: 'star_system'}
+    ], realtime: {
+      filter: (gameId) => `game_id=eq.${gameId}`
+    }},
+    {name: 'star_system', singleton: {parent: 'game'},relationships: ['star_system_object'], realtime: {
+      filter: (gameId) => `game_id=eq.${gameId}`
+    }},
+    {name: 'star_system_object', refTable: 'star_system', realtime: {
+      // TODO: Define appropriate filter for star_system_object table if needed
+      filter: (gameId) => ''
+    }},
+    {
+      name: 'stat',
+      fields: [
+        { name: 'id', type: 'bigint', displayType: 'number', isPrimary: true },
+        { name: 'name', type: 'varchar', displayType: 'string' },
+        { name: 'description', type: 'text', displayType: 'string' },
+        { name: 'ordinal_position', type: 'integer', displayType: 'number' },
+        { name: 'created_at', type: 'timestamp with time zone', displayType: 'date' }
+      ]
+    },
+    {
+      name: 'race',
+      fields: [
+        { name: 'id', type: 'bigint', displayType: 'number', isPrimary: true },
+        { name: 'name', type: 'varchar', displayType: 'string' },
+        { name: 'description', type: 'text', displayType: 'string' },
+        { name: 'base_intelligence', type: 'smallint', displayType: 'number' },
+        { name: 'base_dexterity', type: 'smallint', displayType: 'number' },
+        { name: 'base_strength', type: 'smallint', displayType: 'number' },
+        { name: 'base_charisma', type: 'smallint', displayType: 'number' },
+        { name: 'base_intuition', type: 'smallint', displayType: 'number' },
+        { name: 'base_luck', type: 'smallint', displayType: 'number' },
+        { name: 'base_constitution', type: 'smallint', displayType: 'number' },
+        { name: 'created_at', type: 'timestamp with time zone', displayType: 'date' }
+      ]
+    },
+    {
+      name: 'class',
+      fields: [
+        { name: 'id', type: 'bigint', displayType: 'number', isPrimary: true },
+        { name: 'name', type: 'varchar', displayType: 'string' },
+        { name: 'description', type: 'text', displayType: 'string' },
+        { name: 'created_at', type: 'timestamp with time zone', displayType: 'date' }
+      ],
+      relationships: [
+        { type: 'has-many', table: 'subclass' },
+        { type: 'junction', table: 'skill', junctionTable: 'class_skill' }
+      ]
+    },
+    {
+      name: 'subclass',
+      fields: [
+        { name: 'id', type: 'bigint', displayType: 'number', isPrimary: true },
+        { name: 'class_id', type: 'bigint', displayType: 'number' },
+        { name: 'name', type: 'varchar', displayType: 'string' },
+        { name: 'description', type: 'text', displayType: 'string' },
+        { name: 'created_at', type: 'timestamp with time zone', displayType: 'date' }
+      ],
+      relationships: [
+        'class',
+        { type: 'junction', table: 'skill', junctionTable: 'subclass_skill' }
+      ]
+    },
+    {
+      name: 'skill',
+      fields: [
+        { name: 'id', type: 'bigint', displayType: 'number', isPrimary: true },
+        { name: 'name', type: 'varchar', displayType: 'string' },
+        { name: 'description', type: 'text', displayType: 'string' },
+        { name: 'field_name', type: 'text', displayType: 'string' },
+        { name: 'stat_id', type: 'bigint', displayType: 'number' },
+        { name: 'ordinal_position', type: 'integer', displayType: 'number' },
+        { name: 'created_at', type: 'timestamp with time zone', displayType: 'date' }
+      ],
+      relationships: [
+        'stat'
+      ]
+    },
+    {
+      name: 'ability',
+      plural: 'abilities',
+      select: '*, character_ability(*)', //needed for the character_ability junction table load
+      fields: [
+        { name: 'id', type: 'bigint', displayType: 'number', isPrimary: true },
+        { name: 'subclass_id', type: 'bigint', displayType: 'number' },
+        { name: 'name', type: 'varchar', displayType: 'string' },
+        { name: 'description', type: 'text', displayType: 'string' },
+        { name: 'tier', type: 'integer', displayType: 'number' },
+        { name: 'created_at', type: 'timestamp with time zone', displayType: 'date' }
+      ],
+      relationships: [
+        'subclass'
+      ]
+    },
+    {
+      name: 'subclass_skill',
+      fields: [
+        { name: 'id', type: 'bigint', displayType: 'number', isPrimary: true },
+        { name: 'subclass_id', type: 'bigint', displayType: 'number' },
+        { name: 'skill_id', type: 'bigint', displayType: 'number' },
+        { name: 'created_at', type: 'timestamp with time zone', displayType: 'date' }
+      ]
+    },
+    {
+      name: 'character',
+      modelClass: 'Character',
+      singleton: {parent: 'player', parent_id: 'player_id'},
+      realtime: {
+        filter: (gameId) => `game_id=eq.${gameId}`
+      },
+      fields: [
+        { name: 'id', type: 'bigint', displayType: 'number', isPrimary: true },
+        { name: 'name', type: 'varchar', displayType: 'string' },
+        { name: 'game_id', type: 'bigint', displayType: 'number' },
+        { name: 'player_id', type: 'bigint', displayType: 'number' },
+        { name: 'ship_id', type: 'bigint', displayType: 'number' },
+        { name: 'planet_id', type: 'bigint', displayType: 'number' },
+        { name: 'race_id', type: 'bigint', displayType: 'number' },
+        { name: 'subclass_id', type: 'bigint', displayType: 'number' },
+        { name: 'background', type: 'varchar', displayType: 'string' },
+        { name: 'is_npc', type: 'boolean', displayType: 'boolean' },
+        { name: 'is_alive', type: 'boolean', displayType: 'boolean' },
+        { name: 'is_primary', type: 'boolean', displayType: 'boolean' },
+        { name: 'intelligence', type: 'smallint', displayType: 'number' },
+        { name: 'dexterity', type: 'smallint', displayType: 'number' },
+        { name: 'strength', type: 'smallint', displayType: 'number' },
+        { name: 'charisma', type: 'smallint', displayType: 'number' },
+        { name: 'intuition', type: 'smallint', displayType: 'number' },
+        { name: 'luck', type: 'smallint', displayType: 'number' },
+        { name: 'constitution', type: 'smallint', displayType: 'number' },
+        { name: 'current_hp', type: 'smallint', displayType: 'number' },
+        { name: 'max_hp', type: 'smallint', displayType: 'number' },
+        { name: 'core_skill_1_id', type: 'bigint', displayType: 'number' },
+        { name: 'core_skill_2_id', type: 'bigint', displayType: 'number' },
+        { name: 'core_skill_3_id', type: 'bigint', displayType: 'number' },
+        { name: 'core_skill_4_id', type: 'bigint', displayType: 'number' },
+        { name: 'core_skill_5_id', type: 'bigint', displayType: 'number' },
+        { name: 'vessel_piloting_success_checks', type: 'integer', displayType: 'number' },
+        { name: 'drone_piloting_success_checks', type: 'integer', displayType: 'number' },
+        { name: 'hardware_maintenance_success_checks', type: 'integer', displayType: 'number' },
+        { name: 'computer_engineering_success_checks', type: 'integer', displayType: 'number' },
+        { name: 'demolitions_success_checks', type: 'integer', displayType: 'number' },
+        { name: 'persuasion_success_checks', type: 'integer', displayType: 'number' },
+        { name: 'intimidation_success_checks', type: 'integer', displayType: 'number' },
+        { name: 'deception_success_checks', type: 'integer', displayType: 'number' },
+        { name: 'bartering_success_checks', type: 'integer', displayType: 'number' },
+        { name: 'intuition_success_checks', type: 'integer', displayType: 'number' },
+        { name: 'pistols_success_checks', type: 'integer', displayType: 'number' },
+        { name: 'rifles_success_checks', type: 'integer', displayType: 'number' },
+        { name: 'heavy_weapons_success_checks', type: 'integer', displayType: 'number' },
+        { name: 'melee_weapons_success_checks', type: 'integer', displayType: 'number' },
+        { name: 'brawling_success_checks', type: 'integer', displayType: 'number' },
+        { name: 'foraging_success_checks', type: 'integer', displayType: 'number' },
+        { name: 'perception_success_checks', type: 'integer', displayType: 'number' },
+        { name: 'animal_handling_success_checks', type: 'integer', displayType: 'number' },
+        { name: 'theft_success_checks', type: 'integer', displayType: 'number' },
+        { name: 'hacking_success_checks', type: 'integer', displayType: 'number' },
+        { name: 'performance_success_checks', type: 'integer', displayType: 'number' },
+        { name: 'stealth_success_checks', type: 'integer', displayType: 'number' },
+        { name: 'first_aid_success_checks', type: 'integer', displayType: 'number' },
+        { name: 'evasion_success_checks', type: 'integer', displayType: 'number' },
+        { name: 'education_success_checks', type: 'integer', displayType: 'number' },
+        { name: 'created_at', type: 'timestamp with time zone', displayType: 'date' }
+      ],
+      relationships: [
+        'game',
+        { type: 'has-one', table: 'player', includeByDefault: true },
+        { type: 'has-one', table: 'ship', includeByDefault: true },
+        { type: 'has-one', table: 'planet', includeByDefault: true },
+        { type: 'has-one', table: 'race', includeByDefault: true },
+        { type: 'has-one', table: 'subclass', includeByDefault: true },
+        { type: 'has-one', table: 'skill', foreignKey: 'core_skill_1_id', name: 'core_skill_1', includeByDefault: true },
+        { type: 'has-one', table: 'skill', foreignKey: 'core_skill_2_id', name: 'core_skill_2', includeByDefault: true },
+        { type: 'has-one', table: 'skill', foreignKey: 'core_skill_3_id', name: 'core_skill_3', includeByDefault: true },
+        { type: 'has-one', table: 'skill', foreignKey: 'core_skill_4_id', name: 'core_skill_4', includeByDefault: true },
+        { type: 'has-one', table: 'skill', foreignKey: 'core_skill_5_id', name: 'core_skill_5', includeByDefault: true },
+        { type: 'junction', table: 'ability', name: 'abilities', junctionTable: 'character_ability', includeByDefault: true }
+      ]
+    },
+    {
+      name: 'character_ability',
+      plural: 'character_abilities',
+      fields: [
+        { name: 'id', type: 'bigint', displayType: 'number', isPrimary: true },
+        { name: 'character_id', type: 'bigint', displayType: 'number' },
+        { name: 'ability_id', type: 'bigint', displayType: 'number' },
+        { name: 'created_at', type: 'timestamp with time zone', displayType: 'date' }
+      ]
+    },
+    {
+      name: 'class_skill',
+      fields: [
+        { name: 'id', type: 'bigint', displayType: 'number', isPrimary: true },
+        { name: 'class_id', type: 'bigint', displayType: 'number' },
+        { name: 'skill_id', type: 'bigint', displayType: 'number' },
+        { name: 'created_at', type: 'timestamp with time zone', displayType: 'date' }
+      ]
+    },
+    {
+      name: 'role',
+      realtime: {
+        // TODO: Define appropriate filter for role table if needed
+        filter: (gameId) => ''
+      },
+      fields: [
+        { name: 'id', type: 'bigint', displayType: 'number', isPrimary: true },
+        { name: 'name', type: 'varchar', displayType: 'string' },
+        { name: 'description', type: 'text', displayType: 'string' },
+        { name: 'created_at', type: 'timestamp with time zone', displayType: 'date' }
+      ]
+    }
   ]
   
   constructor (options) {
@@ -79,12 +292,32 @@ export default class DataStore {
           table.relationships[i] = {table: relationship};
           relationship = table.relationships[i];
         }
-        relationship.type = relationship.type || 'has-one' //could be one-many, has-one, or junction
+        relationship.type = relationship.type || 'has-one'; //could be one-many, has-one, or junction
+        relationship.includeByDefault = relationship.includeByDefault || false; // Default to not including in queries
+        
         if (relationship.type === 'has-one') {
           relationship.foreignKey = relationship.foreignKey || relationship.table + '_id';
+          relationship.name = relationship.name || relationship.table;
+          
+          // Only add to select if includeByDefault is true
+          if (relationship.includeByDefault) {
+            // If this is a custom named relationship (like core_skill_1), use both alias AND constraint
+            if (relationship.name !== relationship.table) {
+              const constraintName = `${table.name}_${relationship.foreignKey}_fkey`;
+              table.select += `, ${relationship.name}:${relationship.table}!${constraintName}(*)`;
+            } else {
+              table.select += `, ${relationship.table}(*)`;
+            }
+          }
         } else if (relationship.type === 'has-many') {
           relationship.refKey = relationship.refKey || table.name + '_id';
           relationship.id = relationship.id || table.id;
+          relationship.name = relationship.name || relationship.table + 's';
+          
+          // Only add to select if includeByDefault is true
+          if (relationship.includeByDefault) {
+            table.select += `, ${relationship.table}(*)`;
+          }
         } else if (relationship.type === 'junction') {
           // Must provide junctionTable explicitly 
           if (!relationship.junctionTable) {
@@ -96,10 +329,14 @@ export default class DataStore {
           relationship.targetKey = relationship.targetKey || `${relationship.table}_id`;
           relationship.foreignKey = relationship.foreignKey || table.id;
           relationship.refKey = relationship.refKey || 'id';
-          
-          // Update the select statement to include junction data if needed
-          if (!table.select.includes(relationship.junctionTable)) {
-            table.select = `${table.select}, ${relationship.junctionTable}(*)`;
+          relationship.name = relationship.name || relationship.table + 's';
+
+          // Only add to select if includeByDefault is true
+          if (relationship.includeByDefault) {
+            // Update the select statement to include junction and target data
+            if (!table.select.includes(relationship.junctionTable)) {
+              table.select = `${table.select}, ${relationship.junctionTable}(*, ${relationship.table}(*))`;
+            }
           }
         } else {
           throw new error('Unknown relationship type: ' + relationship.type);
@@ -164,12 +401,21 @@ export default class DataStore {
         existingItem[prop] = item[prop]
       }
 
+      // Update relationships
+      this.updateRelationships(table, existingItem);  
+
       return existingItem; //use this to update the reference on the calling function's end to include all the pre-existing functions
     } else {
       // Set it as the singleton if it is - has to be here or the loading indicators are useless!
       if (isSingleton) {
         logger.debug('store', 'Setting singleton data for', table.name);
         this.data[table.name] = item;
+      }
+
+      // Apply model class if specified for this table
+      if (table.modelClass && Models[table.modelClass]) {
+        logger.debug('store', `Applying ${table.modelClass} model to item`);
+        item = new Models[table.modelClass](item, this);
       }
 
       //Push it into the array if it doesn't already exist
@@ -194,63 +440,6 @@ export default class DataStore {
         }.bind(this);
       }
       
-      //Update any references to us from other tables:
-      for (let refTable of this.tables.filter(t => t.name !== table.name)) {
-        for (let relationship of refTable.relationships) {
-          // Only process relationships that reference our table
-          if (relationship.table === table.name) {
-            if (relationship.type === 'has-one') {
-              // Has one means that the id is on objects in the other table
-              for (let relatedItem of this.data[refTable.plural]) {
-                if (relatedItem[relationship.foreignKey] === item[table.id]) {
-                  relatedItem[relationship.table] = item;
-                }
-              }
-            } else if (relationship.type === 'has-many') {
-              // Has many means that the id is on our end
-              for (let relatedItem of this.data[refTable.plural]) { // Changed from table.plural to refTable.plural
-                if (relatedItem[relationship.refKey] === item[relationship.id]) {
-                  if (!relatedItem[table.plural]) relatedItem[table.plural] = [];
-                  relatedItem[table.plural].push(item);
-                }
-              }
-            } else if (relationship.type === 'junction' && relationship.junctionTable === table.name) {
-              // This table has a relationship using our junction table
-              //TODO - this has not been debugged at all and was made by claude!
-              // debugger;
-              
-              // Find the relevant item in the source table
-              const sourceItem = this.data[refTable.plural].find(
-                srcItem => srcItem[refTable.id] === item[relationship.sourceKey]
-              );
-              
-              // Find the relevant item in the target table
-              const targetTable = this.tables.find(t => t.name === relationship.table);
-              const targetItem = this.data[targetTable.plural].find(
-                tgtItem => tgtItem[targetTable.id] === item[relationship.targetKey]
-              );
-              
-              // Update their cached references if they exist
-              if (sourceItem && sourceItem[targetTable.plural]) {
-                if (!sourceItem[targetTable.plural].some(
-                  tgt => tgt[targetTable.id] === targetItem[targetTable.id]
-                )) {
-                  sourceItem[targetTable.plural].push(targetItem);
-                }
-              }
-              
-              if (targetItem && targetItem[refTable.plural]) {
-                if (!targetItem[refTable.plural].some(
-                  src => src[refTable.id] === sourceItem[refTable.id]
-                )) {
-                  targetItem[refTable.plural].push(sourceItem);
-                }
-              }
-            }
-          }
-        }
-      }
-
       //Add helper functions to allow getting or loading related data for relationships and cache relationship items
       for (const [i, relationship] of table.relationships.entries()) {
         if (relationship.type === 'has-one') {
@@ -259,10 +448,11 @@ export default class DataStore {
            */
           // Add singular load function like get_ship(queryModifier)
           // debugger; //untested code
-          item['load_' + relationship.table] = async function() {
+          const relatedTable = this.tables.find(t => t.name === relationship.table);
+
+          item['load_' + relationship.name] = async function() {
             if (item[relationship.foreignKey]) {
               // Check if already loaded
-              const relatedTable = this.tables.find(t => t.name === relationship.table);
               const existing = this.data[relatedTable.plural].find(
                 el => el[relatedTable.id] === item[relationship.foreignKey]
               );
@@ -270,13 +460,10 @@ export default class DataStore {
               if (existing) return existing;
               
               // Load if not found
-              return this.loadOne(relationship.table, item[relationship.foreignKey]);
+              return this.loadOne(relatedTable, item[relationship.foreignKey]);
             }
             return null;
           }.bind(this);
-
-          // Add a reference to loaded/cached related item
-          item[relationship.table] = this.data[relationship.table] || null;
 
         } else if (relationship.type === 'has-many') {
           /**
@@ -285,7 +472,7 @@ export default class DataStore {
           // Add plural getter like item.getCharacters()
           //First get the related table
           let relatedTable = this.tables.find((t) => relationship.table === t.name);
-          item['load_' + relatedTable.plural] = async function(queryModifier) {
+          item['load_' + relationship.name] = async function(queryModifier) {
             // Start with basic relation query
             const baseModifier = (query) => {
               query.eq(relationship.refKey, item[table.id]);
@@ -300,49 +487,284 @@ export default class DataStore {
           }.bind(this);
 
           //Add a reference to loaded/cached related items
-          item[relatedTable.plural] = this.data[relatedTable.plural].filter((i) => i[relationship.refKey] === item[relationship.id]) || [];
+          item[relationship.name] = this.data[relatedTable.plural].filter((i) => i[relationship.refKey] === item[relationship.id]) || [];
 
         } else if (relationship.type === 'junction') {
           /**
            * Junction relationship
            */
+          const junctionTable = this.tables.find(t => t.name === relationship.junctionTable);
           const targetTable = this.tables.find(t => t.name === relationship.table);
-
-          //Store the related subquery data 
-          for (let [i, junctionItem] of item[relationship.junctionTable].entries()) {
-            item[relationship.junctionTable][i] = this.updateData(relationship.junctionTable, junctionItem);
-          }
-          
+          // debugger; //untested code
           // Add load method for target items through junction
-          const baseModifier = (query) => {
-            query.eq(`${relationship.junctionTable}.${relationship.sourceKey}`, item[table.id]);
-          }
-          item['load_' + targetTable.plural] = async function(queryModifier) {
-            const combinedModifer = queryModifier 
-              ? (query) => {baseModifier(query); queryModifier(query);}
-              : baseModifier;
-            ;
+          item['load_' + relationship.name] = async function(queryModifier) {
+            // Step 1: Load junction records
+            const junctionItems = await this.loadMany(junctionTable, (query) => {
+              query.eq(relationship.sourceKey, item[table.id]);
+            });
             
-            return this.loadMany(targetTable, combinedModifer);
+            if (!junctionItems || junctionItems.length === 0) return [];
+            
+            // Step 2: Extract ID's for in clause to the target table
+            const targetIds = junctionItems.map(j => j[relationship.targetKey]);
+
+            
+            // Step 3: Load abilities with these IDs & the pased in query modifier if present
+            return this.loadMany(targetTable, (query) => {
+              query.in(targetTable.id, targetIds);
+              if (queryModifier) queryModifier(query);
+            });
           }.bind(this);
           
-          // Add reference to loaded/cached related items
-          item[targetTable.plural] = this.data[targetTable.plural].filter(i => {
-            //TODO - this should probably reference a separate array in this.data....
-            //Make sure the array exists
-            if (!i[relationship.junctionTable] || !Array.isArray(i[relationship.junctionTable])) {
-              return false;
+          // Initialize relationship collection
+          item[relationship.name] = [];
+          
+          // Process any included junction data already loaded with the character
+          if (item[relationship.junctionTable] && Array.isArray(item[relationship.junctionTable])) {
+            // Store junction items properly in data store
+            for (let junctionItem of item[relationship.junctionTable]) {
+              this.updateData(junctionTable, junctionItem);
+              
+              // Try to find already loaded target items
+              const targetItem = this.data[targetTable.plural].find(
+                t => t[targetTable.id] === junctionItem[relationship.targetKey]
+              );
+              
+              if (targetItem && !item[relationship.name].includes(targetItem)) {
+                item[relationship.name].push(targetItem);
+              }
             }
-
-            //Check if the junction array has anything that matches our id
-            let matchesOurId = i[relationship.junctionTable].filter(j => j[relationship.sourceKey] === item[relationship.foreignKey]);
-
-            return matchesOurId.length > 0;
-          }) || [];
+          }
         }
-      }
+      }  
+
+      // Update relationships
+      this.updateRelationships(table, item);
       
       return item;
+    }
+  }
+
+  // Manage relationships between tables
+  updateRelationships (table, item) {
+    // Update relationships from other tables to us
+    for (let refTable of this.tables.filter(t => t.name !== table.name)) {
+      for (let relationship of refTable.relationships) {
+        // Only process relationships that reference our table
+        if (relationship.table === table.name) {
+          if (relationship.type === 'has-one') {
+            // Has one means that the id is on objects in the other table
+            for (let relatedItem of this.data[refTable.plural]) {
+              if (relatedItem[relationship.foreignKey] === item[table.id]) {
+                // Use relationship.name instead of relationship.table
+                relatedItem[relationship.name] = item;
+              }
+            }
+          } else if (relationship.type === 'has-many') {
+            // Has many means that the id is on our end
+            for (let relatedItem of this.data[refTable.plural]) {
+              if (item[relationship.refKey] === relatedItem[refTable.id]) {
+                // Use relationship.name instead of table.plural
+                if (!relatedItem[relationship.name]) relatedItem[relationship.name] = [];
+                
+                // Add if not already in the array
+                if (!relatedItem[relationship.name].some(el => el[table.id] === item[table.id])) {
+                  relatedItem[relationship.name].push(item);
+                }
+              }
+            }
+          } else if (relationship.type === 'junction' && relationship.table === table.name) {
+            // Junction relationship handling
+            // Find all junction records that reference this item
+            const junctionRecords = this.data[relationship.junctionTable] || [];
+            
+            for (let junction of junctionRecords) {
+              if (junction[relationship.targetKey] === item[table.id]) {    
+                // Find the source item (character)
+                const sourceItem = this.data[refTable.plural].find(
+                  s => s[refTable.id] === junction[relationship.sourceKey]
+                );
+                
+                if (sourceItem) {
+                  // Initialize array if needed
+                  if (!sourceItem[relationship.name]) sourceItem[relationship.name] = [];
+                  
+                  // Add this item to the collection if not already there
+                  if (!sourceItem[relationship.name].some(i => i[table.id] === item[table.id])) {
+                    sourceItem[relationship.name].push(item);
+                  }
+                }
+              }
+            }
+          }
+        } else if (relationship.type === 'junction' && relationship.junctionTable === table.name) {
+          // Junction relationship handling
+          // - we're the junction table connecting source and target
+          
+          // Find the target table
+          const targetTable = this.tables.find(t => t.name === relationship.table);
+
+          // Find source and target items
+          const sourceItem = this.data[refTable.plural].find(s => s[refTable.id] === item[relationship.sourceKey]);
+          const targetItem = this.data[targetTable.plural].find(t => t[targetTable.id] === item[relationship.targetKey]);
+
+          if (sourceItem && targetItem) {
+            // Initialize array if needed
+            if (!Array.isArray(sourceItem[relationship.name])) sourceItem[relationship.name] = [];
+            
+            // Add target to source's collection if not already there
+            if (!sourceItem[relationship.name].some(i => i[targetTable.id] === targetItem[targetTable.id])) {
+              sourceItem[relationship.name].push(targetItem);
+            }
+
+            // Check if there's a reverse relationship defined
+            const reverseRel = targetTable.relationships.find(r => 
+              r.type === 'junction' && 
+              r.table === refTable.name && 
+              r.junctionTable === table.name
+            );
+            
+            if (reverseRel) {
+              // Initialize reverse collection if needed
+              if (!Array.isArray(targetItem[reverseRel.name])) targetItem[reverseRel.name] = [];
+              
+              // Add source to target's collection if not already there
+              if (!targetItem[reverseRel.name].some(i => i[refTable.id] === sourceItem[refTable.id])) {
+                targetItem[reverseRel.name].push(sourceItem);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Update relationships from us to other tables
+    for (let relationship of table.relationships) {
+      const relatedTable = this.tables.find(t => t.name === relationship.table);
+
+      if (relationship.type === 'has-one') {
+        // Has one means I have the id on my side and there is only one possible related item 
+        // - so update it in case the foreign key changed
+        item[relationship.name] = this.data[relatedTable.plural].find(
+          el => el[relatedTable.id] === item[relationship.foreignKey]
+        ) || null;
+      } else if (relationship.type === 'has-many') {
+        // Has many means I have the id on the other side and there are multiple possible related items
+        // - so update it if it doesn't exist, otherwise other items will add themselves on load
+        if (!Array.isArray(item[relationship.name])) {
+          item[relationship.name] = this.data[relatedTable.plural].filter(
+            el => el[relationship.refKey] === item[table.id]
+          ) || [];
+        } 
+      } else if (relationship.type === 'junction') {
+        // Junction means I need to check the contents of the junction table and target table
+        //Get the junction table
+        const junctionTable = this.tables.find(t => t.name === relationship.junctionTable);
+
+        // Initialize collection if needed
+        if (!Array.isArray(item[relationship.name])) {
+          item[relationship.name] = [];
+        }
+
+        // Find all junction records that reference this item
+        const junctionRecords = this.data[junctionTable.plural] || [];
+        
+        for (let junction of junctionRecords) {
+          if (junction[relationship.sourceKey] === item[relationship.foreignKey]) {        
+            // if (table.name === 'character')debugger;
+            // Find the target items
+            const targetItem = this.data[relatedTable.plural].find(
+              t => t[relationship.refKey] === junction[relationship.targetKey]
+            );
+            
+            if (targetItem && !item[relationship.name].some(i => i[relationship.refKey] === targetItem[relationship.refKey])) {
+              item[relationship.name].push(targetItem);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Process nested data from Supabase queries
+  async processNestedData(table, data) {
+    // Skip if no data
+    if (!data || data.length === 0) return;
+    
+    // Process each relationship defined for this table
+    for (const relationship of table.relationships) {
+      if (relationship.type === 'has-one') {
+        // For has-one, look for the relationship.name field (could be namespaced like core_skill_1)
+        for (const item of data) {
+          const fieldName = relationship.name; // Use the relationship name for has-one
+          
+          if (item[fieldName]) {
+            const relatedItem = item[fieldName];
+            if (relatedItem) {
+              // Delete the reference so updateData can use the existing object if it already exists
+              delete item[fieldName];
+              const relatedTable = this.tables.find(t => t.name === relationship.table);
+              this.updateData(relatedTable, relatedItem);
+            }
+          }
+        }
+      }
+      else if (relationship.type === 'has-many') {
+        // For has-many, Supabase returns data under the table name, not the relationship name
+        for (const item of data) {
+          const fieldName = relationship.table; // Use table name for has-many
+          
+          if (item[fieldName] && Array.isArray(item[fieldName])) {
+            const relatedItems = item[fieldName];
+            const relatedTable = this.tables.find(t => t.name === relationship.table);
+            
+            for (const relatedItem of relatedItems) {
+              if (relatedItem) {
+                this.updateData(relatedTable, relatedItem);
+              }
+            }
+            
+            // Remove the array to prevent duplicate processing
+            delete item[fieldName];
+          }
+        }
+      }
+      else if (relationship.type === 'junction') {
+        // For junction tables, process both junction and target items
+        const junctionTable = this.tables.find(t => t.name === relationship.junctionTable);
+        const targetTable = this.tables.find(t => t.name === relationship.table);
+        
+        for (const [i, item] of data.entries()) {
+          // Junction data comes back under the junction table name
+          if (item[relationship.junctionTable] && Array.isArray(item[relationship.junctionTable])) {
+            const junctionItems = item[relationship.junctionTable];
+            
+            // Remove the junction array to prevent duplicate processing
+            delete item[relationship.junctionTable];
+            
+            for (const junctionItem of junctionItems) {
+              // if (table.name === 'character')debugger;
+              // First process target items within the junction if they exist
+              if (junctionItem[relationship.table]) {
+                const targetItem = Array.isArray(junctionItem[relationship.table]) 
+                  ? junctionItem[relationship.table][0] 
+                  : junctionItem[relationship.table];
+                  
+                if (targetItem) {
+                  // Remove nested target to prevent breaking references with existing objects
+                  delete junctionItem[relationship.table];
+
+                  // Process target item
+                  this.updateData(targetTable, targetItem);
+                }
+              }
+              
+              // Process junction item
+              this.updateData(junctionTable, junctionItem);
+            }
+          }
+        }
+      }
     }
   }
 
@@ -391,7 +813,7 @@ export default class DataStore {
       
       this.data[table.plural + '_loading'] = true;
 
-      //Make sure we have a  user
+      //Make sure we have a user
       if (!this.user) {
         await this.checkAuth();
       }
@@ -411,6 +833,9 @@ export default class DataStore {
       data = result.data;
 
       logger.debug('store', 'Received data for', table.name, data);
+      
+      // Extract and process related data before the main items
+      await this.processNestedData(table, data);
       
       //Update references and helper functions
       for (const [i, item] of data.entries()) {
@@ -433,7 +858,7 @@ export default class DataStore {
     let data;
     
     if (typeof table === 'string') {
-      table = this.tables.find((t) => {t.name === table});
+      table = this.tables.find((t) => t.name === table);
     }
     logger.debug('store', 'Starting loadOne for', table.name, 'id:', id);
     
@@ -450,14 +875,6 @@ export default class DataStore {
         // Add the id query
         queryModifier = (query) => {
           query.eq(table.id, id);
-
-          //Build the query to find the right relationship TODO - remove this but I think something like it will be required eventually for the inverse relationship query
-          // //User is special since it's outside the main data and has a different 
-          // if(table.singleton.parent === 'user') {
-          //   query.eq(table.singleton.foreignKey, this.user[table.singleton.parent_id]);
-          // } else {
-          //   query.eq(table.singleton.foreignKey, this.data[table.singleton.parent][table.singleton.parent_id]);
-          // }
         }
       }
 
