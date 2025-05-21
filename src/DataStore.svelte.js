@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 // Utility
 import logger from '@utils/logger';
+import makeObservable from '@utils/EventEmitter';
 // Model classes
 import * as Models from '@lib/data';
 
@@ -20,22 +21,33 @@ export default class DataStore {
    * select - the query sent to supabase - defaults to *
    */
   tables = [
-    {name: 'game', singleton: {foreignKey: 'user_id', parent: 'user'}, relationships: [
-      {table: 'player', type: 'has-many'},
-      {table: 'ship', type: 'has-many'},
-      {table: 'character', type: 'has-many'},
-      {table: 'planet', type: 'has-many'},
-      {table: 'star_system', type: 'has-many'},
-    ], realtime: {
-      filter: (gameId) => `id=eq.${gameId}`
-    }},
-    {name: 'player', singleton: {parent: 'game'}, relationships: [
-      {table: 'character', type: 'has-many'}
-    ], realtime: {
-      filter: (gameId) => `game_id=eq.${gameId}`
-    }},
+    {
+      name: 'game', 
+      singleton: {foreignKey: 'user_id', parent: 'user'},
+      realtime: {filter: (gameId) => `id=eq.${gameId}`},
+      relationships: [
+        {table: 'player', type: 'has-many'},
+        {table: 'ship', type: 'has-many'},
+        {table: 'character', type: 'has-many'},
+        {table: 'planet', type: 'has-many'},
+        {table: 'star_system', type: 'has-many'},
+      ]
+    },
+    {
+      name: 'player', 
+      singleton: {parent: 'game'},
+      realtime: {
+        filter: (gameId) => `game_id=eq.${gameId}`
+      }, 
+      relationships: [
+        {table: 'character', type: 'has-many'}
+      ]
+    },
     {
       name: 'ship',
+      realtime: {
+        filter: (gameId) => `game_id=eq.${gameId}`
+      }, 
       fields: [
         { name: 'id', type: 'bigint', displayType: 'number', isPrimary: true },
         { name: 'name', type: 'varchar', displayType: 'string' },
@@ -49,18 +61,29 @@ export default class DataStore {
         {table: 'character', type: 'has-many'}
       ]
     },
-    {name: 'planet', relationships: [
-      {table: 'character', type: 'has-many'}
-    ], realtime: {
-      filter: (gameId) => `game_id=eq.${gameId}`
-    }},
-    {name: 'star_system', singleton: {parent: 'game'},relationships: ['star_system_object'], realtime: {
-      filter: (gameId) => `game_id=eq.${gameId}`
-    }},
-    {name: 'star_system_object', refTable: 'star_system', realtime: {
-      // TODO: Define appropriate filter for star_system_object table if needed
-      filter: (gameId) => ''
-    }},
+    {
+      name: 'planet', 
+      realtime: {
+        filter: (gameId) => `game_id=eq.${gameId}`
+      }, 
+      relationships: [
+        {table: 'character', type: 'has-many'}
+      ]
+    },
+    {
+      name: 'star_system', 
+      singleton: {parent: 'game'},
+      realtime: {
+        filter: (gameId) => `game_id=eq.${gameId}`
+      },
+      relationships: ['star_system_object']
+    },
+    {
+      name: 'star_system_object', 
+      realtime: {
+        filter: (gameId) => `game_id=eq.${gameId}`
+      }
+    },
     {
       name: 'stat',
       fields: [
@@ -132,7 +155,7 @@ export default class DataStore {
     {
       name: 'ability',
       plural: 'abilities',
-      select: '*, character_ability(*)', //needed for the character_ability junction table load
+      select: '*',
       fields: [
         { name: 'id', type: 'bigint', displayType: 'number', isPrimary: true },
         { name: 'subclass_id', type: 'bigint', displayType: 'number' },
@@ -233,10 +256,14 @@ export default class DataStore {
     {
       name: 'character_ability',
       plural: 'character_abilities',
+      realtime: {
+        filter: (gameId) => `game_id=eq.${gameId}`
+      },
       fields: [
         { name: 'id', type: 'bigint', displayType: 'number', isPrimary: true },
         { name: 'character_id', type: 'bigint', displayType: 'number' },
         { name: 'ability_id', type: 'bigint', displayType: 'number' },
+        { name: 'game_id', type: 'bigint', displayType: 'number' },
         { name: 'created_at', type: 'timestamp with time zone', displayType: 'date' }
       ]
     },
@@ -251,10 +278,6 @@ export default class DataStore {
     },
     {
       name: 'role',
-      realtime: {
-        // TODO: Define appropriate filter for role table if needed
-        filter: (gameId) => ''
-      },
       fields: [
         { name: 'id', type: 'bigint', displayType: 'number', isPrimary: true },
         { name: 'name', type: 'varchar', displayType: 'string' },
@@ -266,6 +289,10 @@ export default class DataStore {
   
   constructor (options) {
     logger.debug('store', 'DataStore constructor start');
+    
+    //Initialize the event emitter
+    makeObservable(this);
+
     //Supabase
     this.supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
 
@@ -393,6 +420,7 @@ export default class DataStore {
       try {this[property] = DataStore.prototype[property].bind(this);} catch (e) {}
     }
     logger.debug('store', 'DataStore constructor complete');
+    this.realtimeChannels = {};
   }
 
   //Used to udpate the data for a single element or array
@@ -402,6 +430,8 @@ export default class DataStore {
       table = this.tables.find((t) => {t.name === table});
     }
     logger.debug('store', 'Updating data for table:', table.name, 'item:', item);
+    this.emit('data-updated', table, item);
+    this.emit(`${table.name}-updated`, item);
     
     //Try and find if it exists already
     let existingItem = this.data[table.plural].find((el) => el[table.id] === item[table.id]);
@@ -411,6 +441,11 @@ export default class DataStore {
       //Copy properties
       for (let prop of Object.getOwnPropertyNames(item)) {
         existingItem[prop] = item[prop]
+      }
+
+      //Update singleton if it's not currently set
+      if (table.singleton && !this.data[table.name]) {
+        this.data[table.name] = existingItem;
       }
 
       // Update relationships
@@ -427,7 +462,12 @@ export default class DataStore {
       // Apply model class if specified for this table
       if (table.modelClass && Models[table.modelClass]) {
         logger.debug('store', `Applying ${table.modelClass} model to item`);
-        item = new Models[table.modelClass](item, this);
+        // Use factory function for Character
+        if (table.modelClass === 'Character') {
+          item = Models[table.modelClass](item, this);
+        } else {
+          item = new Models[table.modelClass](item, this);
+        }
       }
 
       //Push it into the array if it doesn't already exist
@@ -796,7 +836,7 @@ export default class DataStore {
 
       if(error) throw new Error(error.error.message);
 
-      for (const [i, item] of data) {
+      for (const [i, item] of data.entries()) {
         data[i] = this.updateData(table, item);
       }
     } catch (e) {
@@ -956,5 +996,97 @@ export default class DataStore {
 
   async logOut () {
     //TODO - move from the logout page
+  }
+
+  /**
+   * Subscribe to realtime updates for all relevant tables and the game broadcast channel
+   * @param {number|string} gameId - The current game id
+   */
+  async subscribeRealtime(gameId) {
+    logger.debug('store', 'Subscribing to realtime for game', gameId);
+    await this.unsubscribeRealtime();
+    for (const table of this.tables) {
+      if (table.realtime) {
+        const channel = this.supabase
+          .channel(`realtime:${table.name}:${gameId}`)
+          .on(
+            'postgres_changes', 
+            {
+              event: '*',
+              schema: 'public',
+              table: table.name,
+              filter: table.realtime.filter(gameId)
+            }, 
+            payload => this.handleRealtimeChange(table, payload)
+          )
+          .subscribe();
+        this.realtimeChannels[table.name] = channel;
+      }
+    }
+    // Subscribe to game broadcast channel
+    logger.debug('store', 'Subscribing to game broadcast channel', gameId);
+    
+    const broadcastChannel = this.supabase
+      .channel(`game-broadcast:${gameId}`)
+      .on('broadcast', { event: '*' }, payload => {
+        // Handle custom game event (ie, dice roll, initiate combat, etc)
+        logger.debug('store', 'Game broadcast received', payload);
+        this.emit('game-event', payload);
+      })
+      .subscribe();
+    this.realtimeChannels.broadcast = broadcastChannel;
+  }
+
+  /**
+   * Unsubscribe from all realtime channels
+   */
+  async unsubscribeRealtime() {
+    logger.debug('store', 'Unsubscribing from realtime');
+    if (!this.realtimeChannels) return;
+    for (const key in this.realtimeChannels) {
+      await this.supabase.removeChannel(this.realtimeChannels[key]);
+    }
+    this.realtimeChannels = {};
+  }
+
+  /**
+   * Handle a realtime change event for a table
+   * @param {object} table - The table definition
+   * @param {object} payload - The realtime payload
+   */
+  handleRealtimeChange(table, payload) {
+    // Use updateData for INSERT/UPDATE, remove for DELETE, etc.
+    // Optionally re-fetch for relationship-rich tables
+    logger.debug('store', 'Handling realtime change for table', table.name, 'payload', payload);
+    if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+      this.updateData(table, payload.new);
+    } else if (payload.eventType === 'DELETE') {
+      debugger; //untested code
+      const arr = this.data[table.plural];
+      const idx = arr.findIndex(x => x.id === payload.old.id);
+      if (idx !== -1) arr.splice(idx, 1);
+    }
+  }
+
+  
+  /**
+   * Clear all game data from the store
+   */
+  clearGameData() {
+    // Clear all singletons & non global tables
+    for (const table of this.tables) {
+      // Clear singletons
+      if (table.singleton) {
+        this.data[table.name] = null;
+        this.data[table.name + '_loading'] = true;
+      }
+      // Clear non global tables
+      if (!table.global) {
+        this.data[table.plural] = []
+      }
+    }
+
+    // Clear realtime channels
+    this.unsubscribeRealtime();
   }
 }
