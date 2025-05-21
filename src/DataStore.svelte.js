@@ -34,9 +34,21 @@ export default class DataStore {
     ], realtime: {
       filter: (gameId) => `game_id=eq.${gameId}`
     }},
-    {name: 'ship', relationships: [
-      {table: 'character', type: 'has-many'}
-    ]},
+    {
+      name: 'ship',
+      fields: [
+        { name: 'id', type: 'bigint', displayType: 'number', isPrimary: true },
+        { name: 'name', type: 'varchar', displayType: 'string' },
+        { name: 'description', type: 'text', displayType: 'string' },
+        { name: 'current_shields', type: 'smallint', displayType: 'number' },
+        { name: 'max_shields', type: 'smallint', displayType: 'number' },
+        { name: 'current_hp', type: 'smallint', displayType: 'number' },
+        { name: 'max_hp', type: 'smallint', displayType: 'number' }
+      ],
+      relationships: [
+        {table: 'character', type: 'has-many'}
+      ]
+    },
     {name: 'planet', relationships: [
       {table: 'character', type: 'has-many'}
     ], realtime: {
