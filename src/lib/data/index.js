@@ -1,7 +1,7 @@
 /**
  * Data model exports
  */
-export { createCharacter as Character } from './Character.js';
+export { default as createCharacter } from './createCharacter.js';
 
 // Add more model exports here as needed
 // export { default as Ship } from './Ship.js';

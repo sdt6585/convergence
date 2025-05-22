@@ -5,7 +5,7 @@ import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/publi
 import logger from '@utils/logger';
 import makeObservable from '@utils/EventEmitter';
 // Model classes
-import * as Models from '@lib/data';
+import * as Factories from '@lib/data';
 
 
 export default class DataStore {
@@ -179,7 +179,7 @@ export default class DataStore {
     },
     {
       name: 'character',
-      modelClass: 'Character',
+      modelFactory: 'createCharacter',
       singleton: {parent: 'player', parent_id: 'player_id'},
       realtime: {
         filter: (gameId) => `game_id=eq.${gameId}`
@@ -460,14 +460,10 @@ export default class DataStore {
       }
 
       // Apply model class if specified for this table
-      if (table.modelClass && Models[table.modelClass]) {
-        logger.debug('store', `Applying ${table.modelClass} model to item`);
-        // Use factory function for Character
-        if (table.modelClass === 'Character') {
-          item = Models[table.modelClass](item, this);
-        } else {
-          item = new Models[table.modelClass](item, this);
-        }
+      if (table.modelFactory && Factories[table.modelFactory]) {
+        logger.debug('store', `Applying ${table.modelFactory} to item`);
+        // Use factory function - has to be this way or Svelte breaks (can't use js classes)
+        item = Factories[table.modelFactory](item, this);
       }
 
       //Push it into the array if it doesn't already exist

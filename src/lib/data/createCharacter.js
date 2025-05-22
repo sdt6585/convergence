@@ -2,7 +2,7 @@
  * Character Model Class
  * Extends character data with helper methods for skill calculations and other functionality
  */
-export function createCharacter(data, store) {
+export default function createCharacter(data, store) {
   const character = {
     ...data,
     store,
@@ -28,7 +28,8 @@ export function createCharacter(data, store) {
       const level = this.getSkillLevel(skillName);
       if (level >= 10) {
         return {
-          success_rolls: successChecks,
+          success_checks: successChecks,
+          progress_this_level: thresholds[10] - thresholds[9], // or 0
           rolls_to_next_level: 0,
           next_level_rolls_required: 0
         };
@@ -36,9 +37,11 @@ export function createCharacter(data, store) {
       const currentLevelMin = thresholds[level];
       const nextLevelMin = thresholds[level + 1];
       const levelRange = nextLevelMin - currentLevelMin;
+      const progress_this_level = successChecks - currentLevelMin;
       const rolls_to_next_level = nextLevelMin - successChecks;
       return {
         success_checks: successChecks,
+        progress_this_level,
         rolls_to_next_level,
         next_level_rolls_required: levelRange
       };

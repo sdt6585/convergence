@@ -82,13 +82,6 @@
   }
 
   let data = $state([]);
-  let tick = $state(0);
-
-  function onDataUpdated() {
-    logger.debug('app', $state.snapshot(data))
-    debugger;
-    tick++;
-  }
 
   onMount(async () => {
     // Load necessary data
@@ -107,152 +100,144 @@
     } catch (error) {
       logger.error('party', 'Error loading party data', error);
     }
-
-    // Subscribe to your store's event emitter
-    store.on('character-updated', onDataUpdated);
-    return () => {
-      store.off('character-updated', onDataUpdated);
-    };
   });
 </script>
 
 <div class="party-panel">
   <div class="tree-container">
-    <div data-tick={tick}>
-      {#each data as locationNode}
-        <div class="tree-item">
-          <button class="tree-row" onclick={() => locationNode.expanded = !locationNode.expanded}>
-            <span class="expandable-name {locationNode.expanded ? 'expanded-name' : ''}">{locationNode.item.name}</span>
-            {#if locationNode.type === 'ship'}
-              <span class="stats">
-                HP: {locationNode.item.current_hp}/{locationNode.item.max_hp}
-                Shields: {locationNode.item.current_shields}/{locationNode.item.max_shields}
-              </span>
-            {/if}
-          </button>
-
-          {#if locationNode.expanded}
-            <div class="children">
-              {#if locationNode.children && locationNode.children.length > 0}
-                {#each locationNode.children as characterNode}
-                  <div class="character-item">
-                    <button 
-                      class="tree-row"
-                      onclick={() => characterNode.expanded = !characterNode.expanded}
-                    >
-                      <span class="expandable-name {characterNode.expanded ? 'expanded-name' : ''}">
-                        {characterNode.item.name} - ({characterNode.item.race.name})
-                        <span class="stats">
-                          HP: {characterNode.item.current_hp}/{characterNode.item.max_hp}
-                        </span>
-                      </span>
-                    </button>
-                    
-                    <div class="children">
-                      {#if characterNode.expanded}
-                          <button class="tree-row" onclick={() => characterNode.statsExpanded = !characterNode.statsExpanded}>
-                            <span class="expandable-name {characterNode.statsExpanded ? 'expanded-name' : ''}">
-                              <span class="section-header">Stats</span>
-                            </span>
-                          </button>
-                          {#if characterNode.statsExpanded}
-                            <ul class="character-attributes children">
-                              <li class="stat">INT: {characterNode.item.intelligence}</li>
-                              <li class="stat">DEX: {characterNode.item.dexterity}</li>
-                              <li class="stat">STR: {characterNode.item.strength}</li>
-                              <li class="stat">CHA: {characterNode.item.charisma}</li>
-                              <li class="stat">INT: {characterNode.item.intuition}</li>
-                              <li class="stat">LCK: {characterNode.item.luck}</li>
-                              <li class="stat">CON: {characterNode.item.constitution}</li>
-                            </ul>
-                          {/if}
-                          
-                          <button class="tree-row" onclick={() => characterNode.skillsExpanded = !characterNode.skillsExpanded}>
-                            <span class="expandable-name {characterNode.skillsExpanded ? 'expanded-name' : ''}">
-                              <span class="section-header">Skills</span>
-                            </span>
-                          </button>
-                          {#if characterNode.skillsExpanded}
-                            <!-- Skill Chips Section (Grouped by Category, Collapsible) -->
-                            <ul class="character-attributes children">
-                              <!-- Get skills by category with core skills first -->
-                              {#each characterNode.item.getSkillsByCategory({ useArrayFormat: true, separateCoreSkills: true }) as category}
-                                <li class="skill-category">
-                                  <span class="category-name">{category.name}</span>
-                                  <ul class="children">
-                                    {#each category.skills as skill}
-                                      <li class="skill {category.name === 'Core' ? 'core-skill' : ''}">
-                                        <div class="skill-header">
-                                          <span class="skill-name">{skill.name}: {skill.level}</span>
-                                          <span class="skill-progress-text">
-                                            {#if skill.level < 10}
-                                              {skill.rolls_to_next_level} more to level {skill.level + 1}
-                                            {:else}
-                                              Max level
-                                            {/if}
-                                          </span>
-                                        </div>
-                                        <div class="skill-progress-bar">
-                                          <div class="skill-progress" style="width: {100 * (skill.success_checks - skill.next_level_rolls_required + skill.rolls_to_next_level) / skill.next_level_rolls_required}%"></div>
-                                        </div>                                      
-                                      </li>
-                                    {/each}
-                                  </ul>
-                                </li>
-                              {/each}
-                            </ul>
-                          {/if}
-                          <button class="tree-row" onclick={() => characterNode.abilitiesExpanded = !characterNode.abilitiesExpanded}>
-                            <span class="expandable-name {characterNode.abilitiesExpanded ? 'expanded-name' : ''}">
-                              <span class="section-header">Abilities</span>
-                            </span>
-                          </button>
-                          {#if characterNode.abilitiesExpanded}
-                            <ul class="character-attributes children">
-                              {#each characterNode.item.abilities.children as ability}
-                                <li class="skill">{ability.name}: {ability.description}</li>
-                              {/each}
-                            </ul>
-                          {/if}
-
-                          <button class="tree-row" onclick={() => characterNode.equipmentExpanded = !characterNode.equipmentExpanded}>
-                            <span class="expandable-name {characterNode.equipmentExpanded ? 'expanded-name' : ''}">
-                              <span class="section-header">Equipment</span>
-                            </span>
-                          </button>
-                          {#if characterNode.equipmentExpanded}
-                            <ul class="character-attributes children">
-                              {#each characterNode.item.equipment.children as item}
-                                <li class="equipment-item">
-                                  <span class="equipment-name">{item.name}</span>
-                                  <span class="equipment-type">({item.type})</span>
-                                  {#if item.type === 'weapon'}
-                                    <span class="equipment-stat">DMG: {item.damage}, Range: {item.range}</span>
-                                  {:else if item.type === 'armor'}
-                                    <span class="equipment-stat">Protection: {item.protection}</span>
-                                  {:else if item.type === 'shield'}
-                                    <span class="equipment-stat">Capacity: {item.capacity}, Recharge: {item.recharge}</span>
-                                  {:else if item.type === 'tool'}
-                                    <span class="equipment-stat">{item.functionality}</span>
-                                  {:else if item.type === 'cybernetic'}
-                                    <span class="equipment-stat">{item.ability}</span>
-                                  {:else if item.type === 'drone'}
-                                    <span class="equipment-stat">{item.utility}</span>
-                                  {/if}
-                                </li>
-                              {/each}
-                            </ul>
-                          {/if}
-                      {/if}
-                    </div>
-                  </div>
-                {/each}
-              {/if}
-            </div>
+    {#each data as locationNode}
+      <div class="tree-item">
+        <button class="tree-row" onclick={() => locationNode.expanded = !locationNode.expanded}>
+          <span class="expandable-name {locationNode.expanded ? 'expanded-name' : ''}">{locationNode.item.name}</span>
+          {#if locationNode.type === 'ship'}
+            <span class="stats">
+              HP: {locationNode.item.current_hp}/{locationNode.item.max_hp}
+              Shields: {locationNode.item.current_shields}/{locationNode.item.max_shields}
+            </span>
           {/if}
-        </div>
-      {/each}
-    </div>
+        </button>
+
+        {#if locationNode.expanded}
+          <div class="children">
+            {#if locationNode.children && locationNode.children.length > 0}
+              {#each locationNode.children as characterNode}
+                <div class="character-item">
+                  <button 
+                    class="tree-row"
+                    onclick={() => characterNode.expanded = !characterNode.expanded}
+                  >
+                    <span class="expandable-name {characterNode.expanded ? 'expanded-name' : ''}">
+                      {characterNode.item.name} - ({characterNode.item.race.name})
+                      <span class="stats">
+                        HP: {characterNode.item.current_hp}/{characterNode.item.max_hp}
+                      </span>
+                    </span>
+                  </button>
+                  
+                  <div class="children">
+                    {#if characterNode.expanded}
+                        <button class="tree-row" onclick={() => characterNode.statsExpanded = !characterNode.statsExpanded}>
+                          <span class="expandable-name {characterNode.statsExpanded ? 'expanded-name' : ''}">
+                            <span class="section-header">Stats</span>
+                          </span>
+                        </button>
+                        {#if characterNode.statsExpanded}
+                          <ul class="character-attributes children">
+                            <li class="stat">INT: {characterNode.item.intelligence}</li>
+                            <li class="stat">DEX: {characterNode.item.dexterity}</li>
+                            <li class="stat">STR: {characterNode.item.strength}</li>
+                            <li class="stat">CHA: {characterNode.item.charisma}</li>
+                            <li class="stat">INT: {characterNode.item.intuition}</li>
+                            <li class="stat">LCK: {characterNode.item.luck}</li>
+                            <li class="stat">CON: {characterNode.item.constitution}</li>
+                          </ul>
+                        {/if}
+                        
+                        <button class="tree-row" onclick={() => characterNode.skillsExpanded = !characterNode.skillsExpanded}>
+                          <span class="expandable-name {characterNode.skillsExpanded ? 'expanded-name' : ''}">
+                            <span class="section-header">Skills</span>
+                          </span>
+                        </button>
+                        {#if characterNode.skillsExpanded}
+                          <!-- Skill Chips Section (Grouped by Category, Collapsible) -->
+                          <ul class="character-attributes children">
+                            <!-- Get skills by category with core skills first -->
+                            {#each characterNode.item.getSkillsByCategory({ useArrayFormat: true, separateCoreSkills: true }) as category}
+                              <li class="skill-category">
+                                <span class="category-name">{category.name}</span>
+                                <ul class="children">
+                                  {#each category.skills as skill}
+                                    <li class="skill {category.name === 'Core' ? 'core-skill' : ''}">
+                                      <div class="skill-header">
+                                        <span class="skill-name">{skill.name}: {skill.level}</span>
+                                        <span class="skill-progress-text">
+                                          {#if skill.level < 10}
+                                            {skill.rolls_to_next_level} more to level {skill.level + 1}
+                                          {:else}
+                                            Max level
+                                          {/if}
+                                        </span>
+                                      </div>
+                                      <div class="skill-progress-bar">
+                                        <div class="skill-progress" style="width: {100 * (skill.progress_this_level / skill.next_level_rolls_required)}%"></div>
+                                      </div>                                      
+                                    </li>
+                                  {/each}
+                                </ul>
+                              </li>
+                            {/each}
+                          </ul>
+                        {/if}
+                        <button class="tree-row" onclick={() => characterNode.abilitiesExpanded = !characterNode.abilitiesExpanded}>
+                          <span class="expandable-name {characterNode.abilitiesExpanded ? 'expanded-name' : ''}">
+                            <span class="section-header">Abilities</span>
+                          </span>
+                        </button>
+                        {#if characterNode.abilitiesExpanded}
+                          <ul class="character-attributes children">
+                            {#each characterNode.item.abilities.children as ability}
+                              <li class="skill">{ability.name}: {ability.description}</li>
+                            {/each}
+                          </ul>
+                        {/if}
+
+                        <button class="tree-row" onclick={() => characterNode.equipmentExpanded = !characterNode.equipmentExpanded}>
+                          <span class="expandable-name {characterNode.equipmentExpanded ? 'expanded-name' : ''}">
+                            <span class="section-header">Equipment</span>
+                          </span>
+                        </button>
+                        {#if characterNode.equipmentExpanded}
+                          <ul class="character-attributes children">
+                            {#each characterNode.item.equipment.children as item}
+                              <li class="equipment-item">
+                                <span class="equipment-name">{item.name}</span>
+                                <span class="equipment-type">({item.type})</span>
+                                {#if item.type === 'weapon'}
+                                  <span class="equipment-stat">DMG: {item.damage}, Range: {item.range}</span>
+                                {:else if item.type === 'armor'}
+                                  <span class="equipment-stat">Protection: {item.protection}</span>
+                                {:else if item.type === 'shield'}
+                                  <span class="equipment-stat">Capacity: {item.capacity}, Recharge: {item.recharge}</span>
+                                {:else if item.type === 'tool'}
+                                  <span class="equipment-stat">{item.functionality}</span>
+                                {:else if item.type === 'cybernetic'}
+                                  <span class="equipment-stat">{item.ability}</span>
+                                {:else if item.type === 'drone'}
+                                  <span class="equipment-stat">{item.utility}</span>
+                                {/if}
+                              </li>
+                            {/each}
+                          </ul>
+                        {/if}
+                    {/if}
+                  </div>
+                </div>
+              {/each}
+            {/if}
+          </div>
+        {/if}
+      </div>
+    {/each}
   </div>
 </div>
 
