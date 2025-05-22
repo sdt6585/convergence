@@ -10,6 +10,8 @@
   import { page } from '$app/state';
   import { getContext } from 'svelte';
   import logger from '@utils/logger';
+  import { afterNavigate } from '$app/navigation';
+  import { onDestroy } from 'svelte';
   //Components
   import PanelSelector from './components/PanelSelector.svelte';
   import Party from './components/Party.svelte';
@@ -44,31 +46,41 @@
   // Character selection state for cross-panel communication
   let selectedCharacter = $state(null);
 
-  onMount(async () => {
+  onMount(() => { //This can't be async or the return function won't run - svelte issue
     logger.debug('app', 'Game page mounted');
-    // Load game as singleton
-    let game_id = page.url.searchParams.get('game_id')
-    
-    await store.load_game(game_id, true);
+
+    // Load data
+    (async () => {
+      // Load game as singleton
+      let game_id = page.url.searchParams.get('game_id')
+      await store.load_game(game_id, true);
+      
+      // Enable realtime updates and broadcast channel
+      await store.subscribeRealtime(game_id);
+
+      // TODO - Remove test message
+      store.realtimeChannels.broadcast.send({
+        type: 'broadcast',
+        event: 'game-event',
+        payload: { message: 'Hi' }
+      });
+    })();
     
     // Add window resize listener
-    if (browser) {
-      const handleResize = () => {
+    const handleResize = () => {
         windowWidth = window.innerWidth;
       };
       
-      window.addEventListener('resize', handleResize);
-    }
-
-    // Unmount general listeners
+    window.addEventListener('resize', handleResize);
+  
     return () => {
       logger.debug('app', 'Game page unmounted');
+      // Unmount general listeners
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
-      
-      if (browser) {
-        window.removeEventListener('resize', handleResize);
-      }
+      window.removeEventListener('resize', handleResize);
+
+      store.clearGameData();
     };
   });
 
@@ -200,7 +212,7 @@
 </script>
 
 
-{#if store.data.game_loading === false}
+{#if store.data.game && store.data.game_loading === false}
   {#if windowWidth > 768}
     <!-- Desktop Layout -->
     <div class="panel-layout">
@@ -216,15 +228,17 @@
             <button class="collapse-button" onclick={leftPanelToggle}> |← </button>
           </div>
           
-          <div class="panel-content">
-            {#if leftPanelContent === 'party'}
-              <Party />
-            {:else if leftPanelContent === 'character'}
-              <Character selectedCharacter={selectedCharacter} />
-            {:else if leftPanelContent === 'chat'}
-              <Chat />
-            {/if}
-          </div>
+          {#key store.data.game?.id}
+            <div class="panel-content">
+              {#if leftPanelContent === 'party'}
+                <Party />
+              {:else if leftPanelContent === 'character'}
+                <Character selectedCharacter={selectedCharacter} />
+              {:else if leftPanelContent === 'chat'}
+                <Chat />
+              {/if}
+            </div>
+          {/key}
         </div>
       {:else if !leftPanelSliding}
         <div class="panel-collapsed panel-left-collapsed">
@@ -246,15 +260,17 @@
           <PanelSelector value={centerPanelContent} onChange={onCenterPanelChanged} />
         </div>
 
-        <div class="panel-content">
-          {#if centerPanelContent === 'party'}
-            <Party />
-          {:else if centerPanelContent === 'character'}
-            <Character selectedCharacter={selectedCharacter} />
-          {:else if centerPanelContent === 'chat'}
-            <Chat />
-          {/if}
-        </div>
+        {#key store.data.game?.id}
+          <div class="panel-content">
+            {#if centerPanelContent === 'party'}
+              <Party />
+            {:else if centerPanelContent === 'character'}
+              <Character selectedCharacter={selectedCharacter} />
+            {:else if centerPanelContent === 'chat'}
+              <Chat />
+            {/if}
+          </div>
+        {/key}
       </div>
       
       <!-- Right resize handle (only shown when right panel is visible) -->
@@ -275,15 +291,17 @@
             <PanelSelector value={rightPanelContent} bind:name={rightPanelName} onChange={onRightPanelChanged} />
           </div>
           
-          <div class="panel-content">
-            {#if rightPanelContent === 'party'}
-              <Party />
-            {:else if rightPanelContent === 'character'}
-              <Character selectedCharacter={selectedCharacter} />
-            {:else if rightPanelContent === 'chat'}
-              <Chat />
-            {/if}
-          </div>
+          {#key store.data.game?.id}
+            <div class="panel-content">
+              {#if rightPanelContent === 'party'}
+                <Party />
+              {:else if rightPanelContent === 'character'}
+                <Character selectedCharacter={selectedCharacter} />
+              {:else if rightPanelContent === 'chat'}
+                <Chat />
+              {/if}
+            </div>
+          {/key}
         </div>
       {:else if !rightPanelSliding}
         <div class="panel-collapsed panel-right-collapsed">
@@ -297,13 +315,15 @@
     <div class="mobile-layout">
       <div class="mobile-panel">
         <div class="mobile-panel-content">
-          {#if mobilePanelContent === 'party'}
-            <Party />
-          {:else if mobilePanelContent === 'character'}
-            <Character selectedCharacter={selectedCharacter} />
-          {:else if mobilePanelContent === 'chat'}
-            <Chat />
-          {/if}
+          {#key store.data.game?.id}
+            {#if mobilePanelContent === 'party'}
+              <Party />
+            {:else if mobilePanelContent === 'character'}
+              <Character selectedCharacter={selectedCharacter} />
+            {:else if mobilePanelContent === 'chat'}
+              <Chat />
+            {/if}
+          {/key}
         </div>
         
         <div class="mobile-nav">

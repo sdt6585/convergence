@@ -147,7 +147,7 @@ header > * {
   z-index: 11
 }
 
-.nav-menu a, .nav-menu button{
+.nav-menu .menu-option {
   font-size: 1.3rem;
   text-align: right;
   background: transparent;
@@ -155,7 +155,12 @@ header > * {
   color: var(--text-muted);
 }
 
-.nav-menu button svg {
+.nav-menu .menu-option:hover {
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.nav-menu .menu-option svg {
   display: inline-block;
   width: 23px;
   height: 23px;
@@ -171,30 +176,46 @@ header > * {
   }
 }
 
-button.nav-menu-open {
+button.nav-menu-open, button.nav-menu-close {
   background-color: transparent;
   color: white;
   border: none;
-  margin: 0 15px 0 0;
   height: 40px;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
-button.nav-menu-open svg {
+button.nav-menu-open {
+  margin: 0 15px 0 0;
+}
+
+button.nav-menu-open svg, button.nav-menu-close svg {
   height: 100%;
   width: 100%;
+  transition: transform 0.3s ease;
 }
 
 button.nav-menu-close {
-  background-color: transparent;
-  color: white;
-  border: none;
-  height: 40px;
   margin-right: auto;
 }
 
-button.nav-menu-close svg {
-  height: 100%;
-  width: 100%;
+/* Hover animations */
+button.nav-menu-open:hover, button.nav-menu-close:hover {
+  opacity: 0.8;
+  transform: scale(1.1);
+}
+
+button.nav-menu-open:hover svg {
+  transform: rotate(180deg);
+}
+
+button.nav-menu-close:hover svg {
+  transform: rotate(-90deg);
+}
+
+/* Active/click animations */
+button.nav-menu-open:active, button.nav-menu-close:active {
+  transform: scale(0.9);
 }
 
 .nav-menu > * {
