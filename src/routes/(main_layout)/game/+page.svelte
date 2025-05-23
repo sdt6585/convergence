@@ -8,7 +8,7 @@
   import { browser } from '$app/environment';
   import { fly } from 'svelte/transition';
   import { page } from '$app/state';
-  import { getContext } from 'svelte';
+  import { getContext, setContext } from 'svelte';
   import logger from '@utils/logger';
   import { afterNavigate } from '$app/navigation';
   import { onDestroy } from 'svelte';
@@ -17,6 +17,7 @@
   import Party from './components/Party.svelte';
   import Character from './components/Character.svelte';
   import Chat from './components/Chat.svelte';
+  import Check from '@components/Check.svelte';
 
   logger.debug('app', 'Game page script start');
 
@@ -45,6 +46,9 @@
   
   // Character selection state for cross-panel communication
   let selectedCharacter = $state(null);
+
+  // Check modal integration
+  let checkModalRef;
 
   onMount(() => { //This can't be async or the return function won't run - svelte issue
     logger.debug('app', 'Game page mounted');
@@ -209,6 +213,13 @@
     document.removeEventListener('mousemove', handleMouseMove);
     document.removeEventListener('mouseup', handleMouseUp);
   }
+
+  // roll function to be provided via context
+  async function roll({ sides = 15, baseStatValue = 0, threshold = 0, modifiers = [], title = 'Dice Roll', onResult = () => {} }) {
+    return await checkModalRef.roll({ sides, baseStatValue, threshold, modifiers, title, onResult });
+  }
+
+  setContext('roll', roll);
 </script>
 
 
@@ -359,6 +370,8 @@
 {:else}
     <h1 style="text-align: center; padding-top: 20px;">Loading...</h1>
 {/if}
+
+<Check bind:this={checkModalRef} />
 
 <style>
   .panel-layout {
