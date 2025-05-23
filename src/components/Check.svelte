@@ -19,6 +19,7 @@
   let finalRaw = $state(0);
   let finalModified = $state(0);
   let finalResult = $state(false);
+  let closeable = $state(false);
   let modalRef;
 
   // Helper to sum modifiers
@@ -76,12 +77,14 @@
     finalRaw = 0;
     finalModified = 0;
     finalResult = false;
+    closeable = false;
 
     // Open the modal
     modalRef.open();
 
     // Return the result of the animation (the dice roll result)
     let results = await animateRoll();
+    closeable = true;
 
     // Close the modal after a few seconds
     setTimeout(() => {
@@ -92,7 +95,7 @@
   }
 </script>
 
-<Modal bind:this={modalRef} title={title} closeable={false}>
+<Modal bind:this={modalRef} title={title} {closeable}>
   <div class="dice-modal-future">
     <div class="dice-digital-display">
       <span class="dice-value">{displayValue !== null ? displayValue : '--'}</span>
