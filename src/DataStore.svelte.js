@@ -40,7 +40,8 @@ export default class DataStore {
         filter: (gameId) => `game_id=eq.${gameId}`
       }, 
       relationships: [
-        {table: 'character', type: 'has-many'}
+        {table: 'role', type: 'has-one', includeByDefault: true},
+        {table: 'character', type: 'has-many', includeByDefault: true}
       ]
     },
     {
@@ -112,6 +113,7 @@ export default class DataStore {
     },
     {
       name: 'class',
+      plural: 'classes',
       fields: [
         { name: 'id', type: 'bigint', displayType: 'number', isPrimary: true },
         { name: 'name', type: 'varchar', displayType: 'string' },
@@ -119,12 +121,13 @@ export default class DataStore {
         { name: 'created_at', type: 'timestamp with time zone', displayType: 'date' }
       ],
       relationships: [
-        { type: 'has-many', table: 'subclass' },
-        { type: 'junction', table: 'skill', junctionTable: 'class_skill' }
+        { type: 'has-many', name: 'subclasses', table: 'subclass', includeByDefault: true },
+        { type: 'junction', table: 'skill', junctionTable: 'class_skill', includeByDefault: true }
       ]
     },
     {
       name: 'subclass',
+      plural: 'subclasses',
       fields: [
         { name: 'id', type: 'bigint', displayType: 'number', isPrimary: true },
         { name: 'class_id', type: 'bigint', displayType: 'number' },
@@ -134,7 +137,8 @@ export default class DataStore {
       ],
       relationships: [
         'class',
-        { type: 'junction', table: 'skill', junctionTable: 'subclass_skill' }
+        { type: 'junction', table: 'skill', junctionTable: 'subclass_skill', includeByDefault: true },
+        { type: 'has-many', table: 'ability', name: 'abilities', includeByDefault: true }
       ]
     },
     {
@@ -817,6 +821,7 @@ export default class DataStore {
   }
 
   async createMany (table, insertData) {
+    let data;
     try {
       //If the table passed in was a string, find the correct table element
       if (typeof table === 'string') {
@@ -825,10 +830,13 @@ export default class DataStore {
 
       this.data[table.plural + '_loading'] = true;
 
-      let {data, error} = await this.supabase
+      let result = await this.supabase
         .from(table.name)
         .insert(insertData)
         .select();
+
+      data = result.data;
+      let error = result.error;
 
       if(error) throw new Error(error.error.message);
 

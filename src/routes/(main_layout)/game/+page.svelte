@@ -18,6 +18,7 @@
   import Character from './components/Character.svelte';
   import Chat from './components/Chat.svelte';
   import Check from '@components/Check.svelte';
+  import CharacterCreation from './components/CharacterCreation.svelte';
 
   logger.debug('app', 'Game page script start');
 
@@ -47,8 +48,10 @@
   // Character selection state for cross-panel communication
   let selectedCharacter = $state(null);
 
-  // Check modal integration
+  // Check modal integration 
   let checkModalRef;
+  // Character creation modal integration
+  let characterCreationRef;
 
   onMount(() => { //This can't be async or the return function won't run - svelte issue
     logger.debug('app', 'Game page mounted');
@@ -62,12 +65,33 @@
       // Enable realtime updates and broadcast channel
       await store.subscribeRealtime(game_id);
 
-      // TODO - Remove test message
-      store.realtimeChannels.broadcast.send({
-        type: 'broadcast',
-        event: 'game-event',
-        payload: { message: 'Hi' }
+      // Load player data
+      await store.data.game.load_players();
+
+      // Find our player in the list and set it as the singleton
+      store.data.player = store.data.players.find((player) => player.user_id === store.user.id);
+      
+      // Check our role - show character creation if we are a player and don't have a character
+      if (store.data.player.role.name === 'Player' && (!store.data.player.characters || store.data.player.characters.length === 0)) {
+        // Show character creation
+        debugger; //todo - test and remove
+        characterCreationRef.initiateCharacterCreation({
+          player_id: store.data.player.id
+        });
+      }
+
+      //TODO remove testing
+      characterCreationRef.initiateCharacterCreation({
+        player_id: store.data.player.id,
+        ship_id: 1
       });
+
+      // // TODO - Remove test message
+      // store.realtimeChannels.broadcast.send({
+      //   type: 'broadcast',
+      //   event: 'game-event',
+      //   payload: { message: 'Hi' }
+      // });
     })();
     
     // Add window resize listener
@@ -372,6 +396,7 @@
 {/if}
 
 <Check bind:this={checkModalRef} />
+<CharacterCreation bind:this={characterCreationRef} />
 
 <style>
   .panel-layout {
