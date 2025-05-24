@@ -33,14 +33,14 @@
     logger.debug('app', 'Layout mounted');
 
     // Set up global error handler
-    window.onerror = (message, source, lineno, colno, error) => {
-      logger.error('Uncaught error:', { message, source, lineno, colno, error });
-    };
+    // window.onerror = (message, source, lineno, colno, error) => {
+    //   logger.error('Uncaught error:', { message, source, lineno, colno, error });
+    // };
 
-    // Set up unhandled promise rejection handler
-    window.onunhandledrejection = (event) => {
-      logger.error('Unhandled promise rejection:', event.reason);
-    };
+    // // Set up unhandled promise rejection handler
+    // window.onunhandledrejection = (event) => {
+    //   logger.error('Unhandled promise rejection:', event.reason);
+    // };
 
     // Make sure we're logged in and have the right to access this
     async function checkAuth () {

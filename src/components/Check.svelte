@@ -1,5 +1,5 @@
 <script>
-  import Modal from './Modal.svelte';
+  import Modal from '@components/Modal.svelte';
 
   // Svelte 5 runes mode: use $props for props
   let {
