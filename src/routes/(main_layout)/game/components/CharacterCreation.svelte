@@ -169,14 +169,8 @@
     // Create the character
     let createdCharacter = await store.create_character(character);
 
-    // Add the sub class abilities
-    let abilityPromises = [];
-    for (let ability of selectedSubclass.abilities) {
-      abilityPromises.push(store.create_character_ability({character_id: createdCharacter.id, ability_id: ability.id}));
-    }
-
-    // Wait for all the abilities to be added
-    await Promise.all(abilityPromises);
+    // Add the sub class abilities - just the tier 1 ability now unless it's flagged through the initation function from the GM
+    await store.create_character_ability({character_id: createdCharacter.id, ability_id: selectedSubclass.abilities[0].id});
 
     // Close the modal
     modalRef.close();

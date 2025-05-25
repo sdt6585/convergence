@@ -86,6 +86,15 @@
         ship_id: 1
       });
 
+      //TODO - test and remove
+      const { data, error } = await store.supabase.functions.invoke('ai', {
+        body: {
+          query: "Batman, but happy and friendly, and a bit more like a pirate!",
+          type: "character-creation"
+        }
+      });
+      console.log('Chat Mode:', data, error);
+
       // // TODO - Remove test message
       // store.realtimeChannels.broadcast.send({
       //   type: 'broadcast',
