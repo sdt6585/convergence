@@ -1,13 +1,13 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import OpenAI from "https://deno.land/x/openai@v4.69.0/mod.ts";
-import characterCreation from './character-creation.ts';
+import characterCreation, { characterCreationStream } from './character-creation.ts';
 Deno.serve(async (req)=>{
   //Enable CORS
-  const headers = new Headers({
+  const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
     'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Client-Info, Apikey, Authorization'
-  });
+  };
 
   try {
     //TODO - setup auth checks
@@ -32,10 +32,8 @@ Deno.serve(async (req)=>{
     if (req.method === 'OPTIONS') {
       return new Response(null, {
         status: 204,
-        headers
+        headers: corsHeaders
       });
-    } else {
-      headers.set('Content-Type', 'application/json');
     }
 
     /**
@@ -61,7 +59,10 @@ Deno.serve(async (req)=>{
         }), 
         {
           status: 500,
-          headers
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
         }
       );
     } else if (Deno.env.get("AI_PROVIDER") === "OPENAI") {
@@ -84,7 +85,84 @@ Deno.serve(async (req)=>{
             apiKey
           })
         }), {
-          headers
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
+        });
+      } else if (request.type === 'character-creation-stream') {
+        // Implement Server-Sent Events for real streaming
+        const stream = new ReadableStream({
+          async start(controller) {
+            const encoder = new TextEncoder();
+            
+            try {
+              const character = await characterCreationStream({
+                query: request.query,
+                openai,
+                model,
+                apiKey,
+                onProgress: (data) => {
+                  // Send each progress update as SSE
+                  const sseData = `data: ${JSON.stringify(data)}\n\n`;
+                  controller.enqueue(encoder.encode(sseData));
+                }
+              });
+              
+              // Send the final character data
+              const finalData = `data: ${JSON.stringify({
+                type: "final_character",
+                character: character
+              })}\n\n`;
+              controller.enqueue(encoder.encode(finalData));
+              
+              // Send completion signal
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({type: "stream_complete"})}\n\n`));
+              controller.close();
+              
+            } catch (error) {
+              // Send error and close
+              const errorData = `data: ${JSON.stringify({
+                type: "error", 
+                message: error.message || "Character generation failed"
+              })}\n\n`;
+              controller.enqueue(encoder.encode(errorData));
+              controller.close();
+            }
+          }
+        });
+        
+        return new Response(stream, {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive'
+          }
+        });
+      } else if (request.type === 'character-creation-batch') {
+        // Keep the old batch method for fallback
+        let progressData = [];
+        
+        const character = await characterCreationStream({
+          query: request.query,
+          openai,
+          model,
+          apiKey,
+          onProgress: (data) => {
+            progressData.push(data);
+          }
+        });
+        
+        return new Response(JSON.stringify({
+          type: "character-creation-stream",
+          character: character,
+          progress: progressData
+        }), {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
         });
       } else if (request.type === 'name-generation') {
         
@@ -114,7 +192,10 @@ Deno.serve(async (req)=>{
         message: "AI_PROVIDER not set"
       }), {
         status: 500,
-        headers
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
       });
     }
   } catch (error) {
@@ -123,7 +204,10 @@ Deno.serve(async (req)=>{
       message: "Error: " + error + " - " + error.stack
     }), {
       status: 500,
-      headers
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      }
     });
   }
 });

@@ -3,7 +3,7 @@ import { zodResponseFormat  } from "https://deno.land/x/openai@v4.69.0/helpers/z
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 
-export default async function characterCreation({query, authToken, openai, model, apiKey}) {
+async function characterCreationStream({query, authToken, openai, model, apiKey, onProgress}) {
   // Connect and authenticate with Supabase - use the header auth token **hopefully**
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -17,16 +17,24 @@ export default async function characterCreation({query, authToken, openai, model
     }
   );
 
+  let characterText = "";
+
+  onProgress?.({type: "progress", step: "database", message: "Loading game data..."});
+
   // First - get the related data tables
   const { data: classes } = await supabase
     .from('class')
-    .select('id, name, description, class_skill(*)');
+    .select('id, name, description, class_skill(skill_id, skill(id, name, description))');
   const { data: races } = await supabase
     .from('race')
     .select('id, name, description, base_intelligence, base_strength, base_constitution, base_dexterity, base_charisma, base_luck, base_intuition');
   const { data: subclasses } = await supabase
     .from('subclass')
-    .select('id, name, description, class_id, subclass_skill(*)');
+    .select('id, name, description, class_id, subclass_skill(skill_id, skill(id, name, description))');
+  const { data: skills } = await supabase
+    .from('skill')
+    .select('id, name, description');
+
 
   let classDescriptions = ''
   for (const c of classes) {
@@ -41,6 +49,8 @@ export default async function characterCreation({query, authToken, openai, model
     raceDescriptions += `      - ${r.name}: ${r.description}`;
   };
 
+  onProgress?.({type: "progress", step: "background", message: "Generating character background..."});
+
   /**
    * This will be a multi step process:
    * 1. Generate a background
@@ -49,7 +59,7 @@ export default async function characterCreation({query, authToken, openai, model
    * 4. Geneate stats based on the base stats plus the background - in parrallel to step 3
    * 5. Create or return the character based on what was passed in
    */
-  const backgroundSystemMessage = {
+  const backgroundMessages = [{
     role: "system" as const,
     content: `
       You are an expert AI storyteller helping create immersive and lore-consistent character backgrounds for the tabletop RPG *Project: Gargantua*. The game takes place in a science-fantasy universe full of high-tech spacefaring civilizations, complex interstellar politics, and a galaxy spiraling toward an unknown fate.
@@ -148,15 +158,35 @@ export default async function characterCreation({query, authToken, openai, model
       - Ground everything in the *style and tone* of Gargantua.
       - Respond with only the background story, no other text.
     `
+  }];
+
+  if (query && query.length > 0) {
+    backgroundMessages.push({ role: "user", content: query });
   }
-  
-  const backgroundResponse = await openai.chat.completions.create({
+
+  // Stream the background generation
+  let background = "";
+  const backgroundStream = await openai.chat.completions.create({
     model,
-    messages: [backgroundSystemMessage, { role: "user", content: query }],
+    messages: backgroundMessages,
+    stream: true
   });
 
-  const background = backgroundResponse.choices[0].message.content;
+  for await (const chunk of backgroundStream) {
+    const content = chunk.choices[0]?.delta?.content;
+    if (content) {
+      background += content;
+      onProgress?.({
+        type: "streaming_text",
+        step: "background",
+        token: content
+      });
+    }
+  }
 
+  characterText += `**Background:**\n${background}\n\n`;
+
+  onProgress?.({type: "progress", step: "name_race_class", message: "Selecting name, race, and class..."});
 
   // Name, Class, and Race based on background
   const nameClassRaceSystemMessage = {
@@ -213,10 +243,22 @@ export default async function characterCreation({query, authToken, openai, model
 
   const nameClassRace = nameClassRaceResponse.choices[0].message.parsed;
 
+  // Find the selected race and class for display
+  const selectedRace = races.find(r => r.id === nameClassRace.race_id);
+  const selectedClass = classes.find(c => c.id === nameClassRace.class_id);
+
+  characterText += `**Name:** ${nameClassRace.name}\n`;
+  characterText += `**Race:** ${selectedRace?.name} - ${selectedRace?.description}\n`;
+  characterText += `**Class:** ${selectedClass?.name} - ${selectedClass?.description}\n\n`;
+
+  onProgress?.({
+    type: "character_update",
+    text: characterText
+  });
+
   // Filter the subclasses based on the class_id generated
   const availableSubclasses = subclasses.filter(subclass => subclass.class_id === nameClassRace.class_id);
 
-  const selectedRace = races.find(r => r.id === nameClassRace.race_id);
   const raceBaseStats = `
     Intelligence: ${selectedRace?.base_intelligence}
     Strength: ${selectedRace?.base_strength}
@@ -225,11 +267,10 @@ export default async function characterCreation({query, authToken, openai, model
     Charisma: ${selectedRace?.base_charisma}
     Luck: ${selectedRace?.base_luck}
   `;
-  const selectedClass = classes.find(c => c.id === nameClassRace.class_id);
 
+  onProgress?.({type: "progress", step: "subclass_stats", message: "Choosing subclass and allocating stats..."});
 
   // Generate the subclass
-  // TODO - need to query the database for race, class, and subclass - this is silly
   const subclassSystemMessage = {
     role: "system" as const,
     content: `
@@ -272,18 +313,16 @@ export default async function characterCreation({query, authToken, openai, model
 
       {
         "subclass_id": 2,
-        "allocated_stats": {
-          "intelligence": 1,
-          "dexterity": 2,
-          "strength": 0,
-          "charisma": 1,
-          "intuition": 2,
-          "constitution": 1,
-          "luck": 3
-        }
+        "intelligence": 1,
+        "dexterity": 2,
+        "strength": 0,
+        "charisma": 1,
+        "intuition": 2,
+        "constitution": 1,
+        "luck": 3
       }
 
-      The values in allocated_stats should represent the **points added** to the **base stats**. Do not include totals or base values.
+      The values should represent the **points added** to the **base stats**. Do not include totals or base values.
 
       Do not return explanations or narrative text. Focus only on the data output.
     `
@@ -309,8 +348,24 @@ export default async function characterCreation({query, authToken, openai, model
   const subclassStats = subclassResponse.choices[0].message.parsed;
   const selectedSubclass = availableSubclasses.find(s => s.id === subclassStats.subclass_id);
 
+  characterText += `**Subclass:** ${selectedSubclass?.name} - ${selectedSubclass?.description}\n\n`;
+  characterText += `**Stats:**\n`;
+  characterText += `- Intelligence: ${subclassStats.intelligence + selectedRace.base_intelligence} (${selectedRace.base_intelligence} base + ${subclassStats.intelligence})\n`;
+  characterText += `- Dexterity: ${subclassStats.dexterity + selectedRace.base_dexterity} (${selectedRace.base_dexterity} base + ${subclassStats.dexterity})\n`;
+  characterText += `- Strength: ${subclassStats.strength + selectedRace.base_strength} (${selectedRace.base_strength} base + ${subclassStats.strength})\n`;
+  characterText += `- Charisma: ${subclassStats.charisma + selectedRace.base_charisma} (${selectedRace.base_charisma} base + ${subclassStats.charisma})\n`;
+  characterText += `- Intuition: ${subclassStats.intuition + selectedRace.base_intuition} (${selectedRace.base_intuition} base + ${subclassStats.intuition})\n`;
+  characterText += `- Constitution: ${subclassStats.constitution + selectedRace.base_constitution} (${selectedRace.base_constitution} base + ${subclassStats.constitution})\n`;
+  characterText += `- Luck: ${subclassStats.luck + selectedRace.base_luck} (${selectedRace.base_luck} base + ${subclassStats.luck})\n\n`;
 
-  // Select the unselecte core skills
+  onProgress?.({
+    type: "character_update",
+    text: characterText
+  });
+
+  onProgress?.({type: "progress", step: "core_skills", message: "Selecting core skills..."});
+
+  // Select the core skills
   let coreSkills = {
     core_skill_1_id: null,
     core_skill_2_id: null,
@@ -326,8 +381,8 @@ export default async function characterCreation({query, authToken, openai, model
     // Set the core skill
     coreSkills[`core_skill_${i + 1}_id`] = skill.skill_id;
 
-    // Remove the skill from the available core skills
-    availableCoreSkills = availableCoreSkills.filter(s => s.id !== skill.skill_id);
+    // Remove the skill from the available core skills - fix: use skill_id for comparison
+    availableCoreSkills = availableCoreSkills.filter(s => s.skill_id !== skill.skill_id);
   }
 
   // If there are remaining core skills, select from the class skills
@@ -349,7 +404,7 @@ export default async function characterCreation({query, authToken, openai, model
 
         ${JSON.stringify(coreSkills)}
 
-        Avalable Core Skills to choose from:
+        Available Core Skills to choose from:
 
         ${JSON.stringify(availableCoreSkills)}
 
@@ -366,7 +421,7 @@ export default async function characterCreation({query, authToken, openai, model
       `
     };
 
-    const availableSkillIds = availableCoreSkills?.map((s: any) => s.id) || [];
+    const availableSkillIds = availableCoreSkills?.map((s: any) => s.skill_id) || [];
     
     const coreSkillSchema = z.object({
       core_skill_1_id: z.number().int().refine(val => 
@@ -399,9 +454,19 @@ export default async function characterCreation({query, authToken, openai, model
 
     coreSkills = coreSkillResponse.choices[0].message.parsed;
   }
+
+  // Build skills text
+  characterText += `**Core Skills:**\n`;
+  for (let i = 1; i <= 5; i++) {
+    const skillId = coreSkills[`core_skill_${i}_id`];
+    const skill = skills.find(s => s.id === skillId);
+    characterText += `- ${skill.name}: ${skill.description}\n`;
+  }
+
+  onProgress?.({type: "progress", step: "complete", message: "Character generation complete!"});
   
   // Construct the character
-  return  {
+  const finalCharacter = {
     name: nameClassRace.name,
     race_id: nameClassRace.race_id,
     class_id: nameClassRace.class_id,
@@ -419,6 +484,21 @@ export default async function characterCreation({query, authToken, openai, model
     intuition: subclassStats.intuition + selectedRace.base_intuition,
     constitution: subclassStats.constitution + selectedRace.base_constitution,
     luck: subclassStats.luck + selectedRace.base_luck,
-  }
-  
+  };
+
+  onProgress?.({
+    type: "complete",
+    data: finalCharacter,
+    text: characterText
+  });
+
+  return finalCharacter;
 }
+
+// Keep the original function for backwards compatibility
+export default async function characterCreation({query, authToken, openai, model, apiKey}) {
+  return characterCreationStream({query, authToken, openai, model, apiKey});
+}
+
+// Export the streaming function
+export { characterCreationStream };

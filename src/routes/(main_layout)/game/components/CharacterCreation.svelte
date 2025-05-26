@@ -83,10 +83,19 @@
   });
 
   // Panel order
-  const panels = ['welcome', 'class', 'subclass', 'core_skills', 'race', 'stats', 'name', 'finalize'];
+  const panels = ['welcome', 'ai_results', 'class', 'subclass', 'core_skills', 'race', 'stats', 'name', 'finalize'];
   let currentPanel = $state('welcome');
   let pendingPanel = null;
   
+  // AI Generation state
+  let aiResults = $state('');
+  let aiGenerating = $state(false);
+  let aiError = $state('');
+  let streamingBackground = $state('');
+  let characterText = $state('');
+  let currentStep = $state('');
+  let currentStepMessage = $state('');
+
   function showPanel(panel) {
     if (panel === currentPanel) return;
     pendingPanel = panel;
@@ -196,12 +205,135 @@
   }
 
   async function handleGenerate() {
-    showPanel('loading');
+    aiGenerating = true;
+    aiError = '';
+    aiResults = '';
+    streamingBackground = '';
+    characterText = '';
+    currentStep = '';
+    currentStepMessage = '';
+    showPanel('ai_results');
 
-    // TODO - implement Open AI API and run this through with a contextual function and some prompt engeineering to include the character information and some game design information 
-    setTimeout(() => {
-      showPanel('finalize')
-    }, 2000);
+    try {
+      // Use Server-Sent Events for real streaming
+      const response = await fetch(`${store.supabase.supabaseUrl}/functions/v1/ai`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${store.supabase.supabaseKey}`,
+        },
+        body: JSON.stringify({
+          type: 'character-creation-stream',
+          query: generatePromptText || 'Create an interesting character'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      if (!response.body) {
+        throw new Error('No response body available');
+      }
+
+      // Use async iteration with TextDecoderStream - much cleaner!
+      for await (const chunk of response.body.pipeThrough(new TextDecoderStream())) {
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              handleProgress(data);
+              
+              if (data.type === 'stream_complete') {
+                return; // Exit when stream completes
+              }
+            } catch (e) {
+              console.warn('Failed to parse SSE data:', line);
+            }
+          }
+        }
+      }
+
+    } catch (error) {
+      logger.error('app', 'AI character generation failed:', error);
+      aiError = error.message || 'Failed to generate character';
+      aiResults = `Error: ${error.message}`;
+    } finally {
+      aiGenerating = false;
+      currentStep = '';
+      currentStepMessage = '';
+    }
+  }
+
+  function handleProgress(progressData) {
+    switch(progressData.type) {
+      case 'progress':
+        currentStep = progressData.step;
+        currentStepMessage = progressData.message;
+        break;
+      case 'streaming_text':
+        if (progressData.step === 'background') {
+          streamingBackground += progressData.token; // Accumulate tokens locally
+        }
+        break;
+      case 'character_update':
+        characterText = progressData.text;
+        streamingBackground = ''; // Clear background streaming when we get character updates
+        break;
+      case 'final_character':
+        // Final character data from the stream
+        const aiCharacter = progressData.character;
+        logger.debug('app', 'Final character received:', aiCharacter);
+        populateCharacterFromAI(aiCharacter);
+        aiResults = 'Character generation complete';
+        break;
+      case 'complete':
+        // Final character data (legacy - keeping for backwards compatibility)
+        if (progressData.data) {
+          const aiCharacter = progressData.data;
+          logger.debug('app', 'Complete message received:', { aiCharacter, progressData });
+          populateCharacterFromAI(aiCharacter);
+          aiResults = 'Character generation complete';
+        }
+        if (progressData.text) {
+          characterText = progressData.text;
+        }
+        logger.debug('app', 'After complete:', { aiResults: !!aiResults, characterText: !!characterText, aiGenerating });
+        // Don't clear currentStep and currentStepMessage here - let the finally block handle it
+        break;
+      case 'error':
+        aiError = progressData.message;
+        break;
+    }
+  }
+
+  function populateCharacterFromAI(aiCharacter) {
+    // Update character object
+    character.name = aiCharacter.name || '';
+    character.background = aiCharacter.background || streamingBackground || '';
+    character.race_id = aiCharacter.race_id;
+    character.class_id = aiCharacter.class_id;
+    character.subclass_id = aiCharacter.subclass_id;
+    character.core_skill_1_id = aiCharacter.core_skill_1_id;
+    character.core_skill_2_id = aiCharacter.core_skill_2_id;
+    character.core_skill_3_id = aiCharacter.core_skill_3_id;
+    character.core_skill_4_id = aiCharacter.core_skill_4_id;
+    character.core_skill_5_id = aiCharacter.core_skill_5_id;
+    character.intelligence = aiCharacter.intelligence;
+    character.dexterity = aiCharacter.dexterity;
+    character.strength = aiCharacter.strength;
+    character.charisma = aiCharacter.charisma;
+    character.intuition = aiCharacter.intuition;
+    character.constitution = aiCharacter.constitution;
+    character.luck = aiCharacter.luck;
+
+    // Update UI state variables
+    selectedRace = store.data.races.find(r => r.id === aiCharacter.race_id);
+    selectedClass = store.data.classes.find(c => c.id === aiCharacter.class_id);
+    selectedSubclass = store.data.subclasses.find(s => s.id === aiCharacter.subclass_id);
+    subclassOptions = store.data.subclasses.filter(s => s.class_id === aiCharacter.class_id);
   }
   
 </script>
@@ -215,7 +347,6 @@
           <label for="character-description">Describe your character</label>
           <textarea
             id="character-description"
-            class="btn"
             bind:value={generatePromptText}
             style="width: 100%; min-height: 120px; font-size: 1.1rem; padding: 1rem; resize: vertical;"
             placeholder="Write a detailed description of your character, their background, goals, and anything else you want the AI to use."
@@ -224,6 +355,62 @@
         <div class="modal-actions">
           <button class="btn btn-primary" onclick={handleGenerate}>Generate</button>
           <button class="btn btn-secondary" onclick={() => showPanel('class')}>Manual character creation</button>
+        </div>
+      </div>
+    {/if}
+    {#if currentPanel === 'ai_results'}
+      <div class="creation-panel" transition:slide onoutroend={handleOutroEnd}>
+        <div class="ai-results-container" class:generation-complete={!aiGenerating && aiResults}>
+          <label class="panel-label">AI Character Generation</label>
+          
+          <div class="character-generation-layout">
+            <!-- Character Text Display -->
+            <div class="character-text-section">
+              {#if characterText}
+                <div class="character-text">{@html characterText.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</div>
+              {:else if streamingBackground}
+                <div class="streaming-text">{streamingBackground}<span class="typing-cursor">|</span></div>
+              {:else}
+                <div class="placeholder-text">Character will appear here as it's generated...</div>
+              {/if}
+            </div>
+
+            <!-- Generation Status Section -->
+            <div class="status-section">
+              {#if aiGenerating}
+                {#if currentStep && currentStepMessage}
+                  <div class="progress-indicator">
+                    <div class="progress-step">{currentStep.replace('_', ' ').toUpperCase()}</div>
+                    <div class="progress-message">{currentStepMessage}</div>
+                  </div>
+                {:else}
+                  <div class="loading-indicator">
+                    <div class="spinner"></div>
+                    <span>Initializing character generation...</span>
+                  </div>
+                {/if}
+              {:else if aiResults && !aiError}
+                <div class="completion-message">
+                  <span>✓ Character generation complete</span>
+                </div>
+              {:else if aiError}
+                <div class="error-message">
+                  <strong>Error:</strong> {aiError}
+                </div>
+              {/if}
+            </div>
+          </div>
+        </div>
+        
+        <div class="modal-actions">
+          <button class="btn btn-secondary" onclick={() => showPanel('welcome')} disabled={aiGenerating}>Back to Description</button>
+          {#if aiResults && !aiGenerating && !aiError}
+            <button class="btn btn-primary" onclick={() => showPanel('finalize')}>Use This Character</button>
+            <button class="btn btn-secondary" onclick={() => showPanel('class')}>Customize Further</button>
+          {/if}
+          {#if aiError}
+            <button class="btn btn-primary" onclick={handleGenerate}>Try Again</button>
+          {/if}
         </div>
       </div>
     {/if}
@@ -312,13 +499,12 @@
               {#if selectedSubclass.skills[idx]}
                 <div class="form-group">
                   <label>Subclass Skill {idx+1}:</label>
-                  <input class="btn" type="text" value={selectedSubclass.skills[idx].name} readonly style="width: 100%;" />
+                  <input type="text" value={selectedSubclass.skills[idx].name} readonly style="width: 100%;" />
                 </div>
               {:else}
                 <div class="form-group">
                   <label>Selectable Class Skill {idx+1}:</label>
                   <select
-                    class="btn btn-primary"
                     bind:value={character[`core_skill_${idx+1}_id`]}
                     onchange={e => handleSkillChange(e, idx)}
                     style="width: 100%;"
@@ -404,31 +590,31 @@
           <div class="form-group">
             <div class="stat-input-group">
               <label>Intelligence (Base: {selectedRace.base_intelligence})</label>
-              <input class="btn" type="number" min="{selectedRace.base_intelligence}" max={character.intelligence + remainingStatPoints} bind:value={character.intelligence}/>
+              <input type="number" min="{selectedRace.base_intelligence}" max={character.intelligence + remainingStatPoints} bind:value={character.intelligence}/>
             </div>
             <div class="stat-input-group">
               <label>Dexterity (Base: {selectedRace.base_dexterity})</label>
-              <input class="btn" type="number" min="{selectedRace.base_dexterity}" max={character.dexterity + remainingStatPoints} bind:value={character.dexterity}/>
+              <input type="number" min="{selectedRace.base_dexterity}" max={character.dexterity + remainingStatPoints} bind:value={character.dexterity}/>
             </div>
             <div class="stat-input-group">
               <label>Strength (Base: {selectedRace.base_strength})</label>
-              <input class="btn" type="number" min="{selectedRace.base_strength}" max={character.strength + remainingStatPoints} bind:value={character.strength}/>
+              <input type="number" min="{selectedRace.base_strength}" max={character.strength + remainingStatPoints} bind:value={character.strength}/>
             </div>
             <div class="stat-input-group">
               <label>Charisma (Base: {selectedRace.base_charisma})</label>
-              <input class="btn" type="number" min="{selectedRace.base_charisma}" max={character.charisma + remainingStatPoints} bind:value={character.charisma}/>
+              <input type="number" min="{selectedRace.base_charisma}" max={character.charisma + remainingStatPoints} bind:value={character.charisma}/>
             </div>
             <div class="stat-input-group">
               <label>Intuition (Base: {selectedRace.base_intuition})</label>
-              <input class="btn" type="number" min="{selectedRace.base_intuition}" max={character.intuition + remainingStatPoints} bind:value={character.intuition}/>
+              <input type="number" min="{selectedRace.base_intuition}" max={character.intuition + remainingStatPoints} bind:value={character.intuition}/>
             </div>
             <div class="stat-input-group">
               <label>Luck (Base: {selectedRace.base_luck})</label>
-              <input class="btn" type="number" min="{selectedRace.base_luck}" max={character.luck + remainingStatPoints} bind:value={character.luck}/>
+              <input type="number" min="{selectedRace.base_luck}" max={character.luck + remainingStatPoints} bind:value={character.luck}/>
             </div>
             <div class="stat-input-group">
               <label>Constitution (Base: {selectedRace.base_constitution})</label>
-              <input class="btn" type="number" min="{selectedRace.base_constitution}" max={character.constitution + remainingStatPoints} bind:value={character.constitution}/>
+              <input type="number" min="{selectedRace.base_constitution}" max={character.constitution + remainingStatPoints} bind:value={character.constitution}/>
             </div>
 
           </div>
@@ -443,16 +629,16 @@
       <div class="creation-panel" transition:slide onoutroend={handleOutroEnd}>
         <div class="form-group">
           <label>Generate Name & Background (AI)</label>
-          <textarea class="btn" type="text" bind:value={generateNameAndBackgroundPromptText} placeholder="Add anything to guide the AI..." style="width: 100%;" />
+          <textarea type="text" bind:value={generateNameAndBackgroundPromptText} placeholder="Add anything to guide the AI..." style="width: 100%;" />
           <button class="btn btn-primary" onclick={handleGenerateNameAndBackground}>Generate</button>
         </div>
         <div class="form-group">
           <label>Character Name</label>
-          <input class="btn" type="text" bind:value={character.name} style="width: 100%;" />
+          <input type="text" bind:value={character.name} style="width: 100%;" />
         </div>
         <div class="form-group">
           <label>Background</label>
-          <textarea class="btn" bind:value={character.background} style="width: 100%; min-height: 80px;"></textarea>
+          <textarea  bind:value={character.background} style="width: 100%; min-height: 250px;"></textarea>
         </div>
         <div class="modal-actions">
           <button class="btn" onclick={() => showPanel('stats')}>Return to Stats Selection</button>
@@ -489,6 +675,7 @@
     flex-direction: column;
     flex: 1;
     max-height: calc(100vh - 100px);
+    overflow: auto;
   }
 
   .creation-panel > :first-child {
@@ -580,5 +767,210 @@
   .btn {
     padding: 0.5rem 1rem;
     flex: 1
+  }
+
+  .ai-results-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .loading-indicator {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    border-left-color: #000;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  .error-message {
+    color: red;
+    margin-top: 1rem;
+  }
+
+  .ai-results-display {
+    flex: 1;
+    padding: 1rem;
+  }
+
+  .results-text {
+    white-space: pre-wrap;
+  }
+
+  .streaming-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 335px);
+    overflow: auto;
+  }
+
+  .progress-indicator {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .progress-step {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+  }
+
+  .progress-message {
+    font-size: 1.2rem;
+  }
+
+  .streaming-background {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .streaming-text {
+    white-space: pre-wrap;
+  }
+
+  .typing-cursor {
+    font-size: 2rem;
+    animation: blink 0.7s step-end infinite;
+  }
+
+  @keyframes blink {
+    50% {
+      color: transparent;
+    }
+  }
+
+  .character-display {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
+    background: var(--clr-surface-a10);
+    border-radius: 10px;
+    margin: 1rem 0;
+    max-height: calc(100vh - 435px);
+    overflow: auto;
+  }
+
+  .character-text {
+    white-space: pre-wrap;
+    line-height: 1.6;
+    max-width: 100%;
+    text-align: left;
+    font-size: 0.95rem;
+  }
+
+  .final-character-text {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background: var(--clr-surface-a10);
+    border-radius: 10px;
+    line-height: 1.6;
+    font-size: 0.95rem;
+  }
+
+  .character-text strong,
+  .final-character-text strong {
+    color: var(--clr-primary-a0);
+    font-weight: bold;
+  }
+
+  .character-generation-layout {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-height: calc(100vh - 300px);
+    overflow: hidden;
+  }
+
+  .generation-complete .character-generation-layout {
+    max-height: calc(100vh - 250px);
+  }
+
+  .character-text-section {
+    flex: 1;
+    background: var(--clr-surface-a10);
+    border-radius: 8px;
+    padding: 1rem;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .character-text {
+    white-space: pre-wrap;
+    line-height: 1.6;
+    font-size: 0.95rem;
+    flex: 1;
+  }
+
+  .streaming-text {
+    white-space: pre-wrap;
+    line-height: 1.6;
+    font-size: 0.95rem;
+    flex: 1;
+  }
+
+  .placeholder-text {
+    text-align: center;
+    color: var(--clr-primary-a20);
+    font-style: italic;
+    margin: auto;
+    align-self: center;
+  }
+
+  .status-section {
+    background: var(--clr-surface-a10);
+    border-radius: 8px;
+    padding: 1rem;
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .generation-complete .status-section {
+    min-height: 60px;
+  }
+
+  .completion-message {
+    color: var(--clr-primary-a0);
+    font-weight: bold;
+    font-size: 1.1rem;
+  }
+
+  .completion-message span {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
 </style>
