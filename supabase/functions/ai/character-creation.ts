@@ -120,7 +120,7 @@ async function characterCreationStream({query, authToken, openai, model, apiKey,
 
       ### ✨ What Makes a Strong Background Story
 
-      Use this loose outline to construct a 3–5 paragraph background:
+      Use this loose outline to construct a 3-5 paragraph background:
 
       1. **Family Origins**: Culture, environment, values they were raised with.
       2. **Childhood Conflict**: A formative event that shaped their teenage years.
@@ -155,7 +155,7 @@ async function characterCreationStream({query, authToken, openai, model, apiKey,
         - Hidden Power
 
       - Do **not** output stats or specific mechanical data.
-      - Ground everything in the *style and tone* of Gargantua.
+      - Ground everything in the *style and tone* of Convergence.
       - Respond with only the background story, no other text.
     `
   }];
